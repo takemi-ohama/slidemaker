@@ -1,0 +1,46 @@
+# slidemaker configuration example
+
+llm:
+  # Configuration for slide composition generation
+  composition:
+    type: api  # 'api' or 'cli'
+    provider: claude  # claude, gpt, gemini, nano-banana
+    model: claude-opus-4-5
+    api_key: ${CLAUDE_API_KEY}  # Use environment variable
+
+  # Configuration for image generation
+  image_generation:
+    type: api
+    provider: dalle  # dalle, stable-diffusion
+    model: dall-e-3
+    api_key: ${OPENAI_API_KEY}  # Use environment variable
+
+output:
+  # Output directory for generated slides
+  directory: ./output
+
+  # Temporary directory for intermediate files
+  temp_directory: ./tmp
+
+  # Keep temporary files after generation
+  keep_temp: false
+
+slide:
+  # Default slide size (16:9, 4:3, etc.)
+  default_size: "16:9"
+
+  # Default theme
+  default_theme: "minimal"
+
+  # Default font
+  default_font: "Arial"
+
+logging:
+  # Log level (DEBUG, INFO, WARNING, ERROR)
+  level: INFO
+
+  # Log format (json, text)
+  format: json
+
+  # Log file path (optional)
+  file: null
