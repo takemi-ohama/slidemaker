@@ -1,7 +1,5 @@
 """Tests for Claude Code CLI adapter."""
 
-import pytest
-
 from slidemaker.llm.adapters.cli.claude_code import ClaudeCodeAdapter
 
 

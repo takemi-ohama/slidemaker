@@ -284,6 +284,7 @@ class GeminiCLIAdapter(CLIAdapter):
                     if isinstance(response_value, str):
                         return response_value
         except json.JSONDecodeError:
+            # JSONパースに失敗した場合はスキップし、プレーンテキストとして扱う
             pass
 
         # Fallback: treat as plain text

@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class APIAdapter(LLMAdapter):
     """Base class for API-based LLM adapters."""
 
-    def __init__(self, api_key: str, model: str, timeout: int = 300):
+    def __init__(self, api_key: str, model: str, timeout: int = 300) -> None:
         """
         Initialize API adapter.
 

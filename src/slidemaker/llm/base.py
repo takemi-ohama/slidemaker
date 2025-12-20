@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class LLMAdapter(ABC):
     """Abstract base class for LLM adapters."""
 
-    def __init__(self, model: str, timeout: int = 300):
+    def __init__(self, model: str, timeout: int = 300) -> None:
         """
         Initialize LLM adapter.
 

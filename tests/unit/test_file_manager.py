@@ -1,7 +1,5 @@
 """Unit tests for FileManager."""
 
-from pathlib import Path
-
 import pytest
 
 from slidemaker.utils import FileManager

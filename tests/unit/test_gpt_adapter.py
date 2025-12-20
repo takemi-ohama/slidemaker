@@ -1,10 +1,10 @@
 """Unit tests for GPT adapter."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from slidemaker.llm.adapters.api.gpt import GPTAdapter
-from slidemaker.llm.base import LLMAuthenticationError, LLMRateLimitError
 
 
 class TestGPTAdapter:

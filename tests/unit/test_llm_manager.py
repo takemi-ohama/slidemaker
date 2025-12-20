@@ -1,7 +1,8 @@
 """Unit tests for LLM Manager."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
 
 from slidemaker.llm.manager import LLMManager
 from slidemaker.utils.config_loader import LLMConfig

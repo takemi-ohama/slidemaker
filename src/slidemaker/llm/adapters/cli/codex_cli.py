@@ -23,6 +23,7 @@ class CodexCLIAdapter(CLIAdapter):
         cli_path: str = "codex",
         model: str = "claude-3-5-sonnet-20241022",
         timeout: int = 300,
+        dangerously_bypass_approvals: bool = False,
     ) -> None:
         """
         Initialize Codex CLI adapter.
@@ -31,19 +32,30 @@ class CodexCLIAdapter(CLIAdapter):
             cli_path: Path to codex executable (default: "codex")
             model: Model identifier (default: "claude-3-5-sonnet-20241022")
             timeout: Command timeout in seconds (default: 300)
+            dangerously_bypass_approvals: Skip confirmations for automated use
+                (default: False). Set to True only for non-interactive execution.
+                WARNING: Setting this to True bypasses all safety checks and
+                confirmations, which can be dangerous in untrusted environments.
 
         Note:
             Codex CLI supports various Claude models. Common models:
             - claude-3-5-sonnet-20241022 (default, balanced)
             - claude-3-opus-20240229 (most capable)
             - claude-3-haiku-20240307 (fastest)
+
+        Security:
+            The dangerously_bypass_approvals parameter defaults to False for
+            security. Only enable it when running in controlled, automated
+            environments where user confirmation is not possible.
         """
         super().__init__(cli_path=cli_path, model=model, timeout=timeout)
+        self.dangerously_bypass_approvals = dangerously_bypass_approvals
         logger.info(
             "Codex CLI adapter initialized",
             cli_path=cli_path,
             model=model,
             timeout=timeout,
+            dangerously_bypass_approvals=dangerously_bypass_approvals,
         )
 
     def _build_command(
@@ -59,7 +71,7 @@ class CodexCLIAdapter(CLIAdapter):
                 - sandbox: Sandbox mode ("read-only", "workspace-write",
                   "danger-full-access")
                 - dangerously_bypass_approvals: Skip confirmations
-                  (default: True for non-interactive)
+                  (overrides instance default if provided)
                 - skip_git_repo_check: Allow running outside Git repo
                   (default: True)
                 - json_output: Enable JSON output format (default: False)
@@ -68,6 +80,7 @@ class CodexCLIAdapter(CLIAdapter):
             Command line as list of strings
 
         Example:
+            >>> adapter = CodexCLIAdapter(dangerously_bypass_approvals=True)
             >>> adapter._build_command("Hello", system_prompt="You are helpful")
             ["codex", "exec", "--model", "claude-3-5-sonnet-20241022",
              "--dangerously-bypass-approvals-and-sandbox",
@@ -86,8 +99,11 @@ class CodexCLIAdapter(CLIAdapter):
             command.extend(["--sandbox", sandbox])
 
         # Bypass approvals and sandbox for non-interactive execution
-        # (required for automated use)
-        if kwargs.get("dangerously_bypass_approvals", True):
+        # Use instance default, but allow override via kwargs
+        bypass_approvals = kwargs.get(
+            "dangerously_bypass_approvals", self.dangerously_bypass_approvals
+        )
+        if bypass_approvals:
             command.append("--dangerously-bypass-approvals-and-sandbox")
 
         # Skip git repo check (allow running outside Git repositories)

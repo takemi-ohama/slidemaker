@@ -18,7 +18,7 @@ class FileManager:
         temp_dir: str | Path | None = None,
         keep_temp: bool = False,
         output_base_dir: str | Path | None = None,
-    ):
+    ) -> None:
         """
         Initialize file manager.
 

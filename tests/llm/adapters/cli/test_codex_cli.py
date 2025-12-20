@@ -18,6 +18,7 @@ class TestCodexCLIAdapter:
         assert adapter.cli_path == "codex"
         assert adapter.model == "claude-3-5-sonnet-20241022"
         assert adapter.timeout == 300
+        assert adapter.dangerously_bypass_approvals is False
 
     def test_init_custom_parameters(self) -> None:
         """Test initialization with custom parameters."""
@@ -32,7 +33,7 @@ class TestCodexCLIAdapter:
         assert adapter.timeout == 600
 
     def test_build_command_basic(self) -> None:
-        """Test _build_command with basic prompt."""
+        """Test _build_command with basic prompt (default: safe mode)."""
         adapter = CodexCLIAdapter()
         command = adapter._build_command("Hello, world!")
 
@@ -40,9 +41,34 @@ class TestCodexCLIAdapter:
         assert command[1] == "exec"
         assert "--model" in command
         assert "claude-3-5-sonnet-20241022" in command
+        # Default: should NOT include dangerous bypass flag
+        assert "--dangerously-bypass-approvals-and-sandbox" not in command
+        assert "--skip-git-repo-check" in command
+        assert command[-1] == "Hello, world!"
+
+    def test_build_command_with_bypass_approvals(self) -> None:
+        """Test _build_command with dangerously_bypass_approvals enabled."""
+        adapter = CodexCLIAdapter(dangerously_bypass_approvals=True)
+        command = adapter._build_command("Hello, world!")
+
+        assert command[0] == "codex"
+        assert command[1] == "exec"
+        assert "--model" in command
+        assert "claude-3-5-sonnet-20241022" in command
+        # Should include bypass flag when explicitly enabled
         assert "--dangerously-bypass-approvals-and-sandbox" in command
         assert "--skip-git-repo-check" in command
         assert command[-1] == "Hello, world!"
+
+    def test_build_command_with_bypass_approvals_kwarg(self) -> None:
+        """Test _build_command with dangerously_bypass_approvals kwarg override."""
+        adapter = CodexCLIAdapter(dangerously_bypass_approvals=False)
+        command = adapter._build_command(
+            "Hello, world!", dangerously_bypass_approvals=True
+        )
+
+        # Should include bypass flag when overridden via kwargs
+        assert "--dangerously-bypass-approvals-and-sandbox" in command
 
     def test_build_command_with_system_prompt(self) -> None:
         """Test _build_command with system prompt."""

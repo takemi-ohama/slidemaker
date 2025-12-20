@@ -1,6 +1,5 @@
 """Page definition models."""
 
-from typing import Union
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +11,7 @@ class PageDefinition(BaseModel):
 
     page_number: int = Field(..., ge=1, description="Page number (1-indexed)")
     title: str | None = Field(default=None, description="Optional page title")
-    elements: list[Union[TextElement, ImageElement]] = Field(
+    elements: list[TextElement | ImageElement] = Field(
         default_factory=list, description="List of elements on the page"
     )
     layout: str | None = Field(default=None, description="Optional layout template name")
@@ -21,7 +20,7 @@ class PageDefinition(BaseModel):
         default=None, pattern=r"^#[0-9A-Fa-f]{6}$", description="Optional background color override"
     )
 
-    def add_element(self, element: Union[TextElement, ImageElement]) -> None:
+    def add_element(self, element: TextElement | ImageElement) -> None:
         """Add an element to the page."""
         self.elements.append(element)
 

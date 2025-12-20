@@ -14,7 +14,7 @@ class LLMManager:
 
     def __init__(
         self, composition_config: LLMConfig, image_generation_config: LLMConfig | None = None
-    ):
+    ) -> None:
         """
         Initialize LLM manager.
 
