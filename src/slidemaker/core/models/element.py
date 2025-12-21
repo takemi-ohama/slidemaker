@@ -43,5 +43,5 @@ class ImageElement(ElementDefinition):
 
     element_type: Literal["image"] = "image"
     source: str = Field(..., description="Image file path or URL")
-    fit_mode: FitMode = Field(default=FitMode.FIT, description="How image fits in the area")
+    fit_mode: FitMode = Field(default=FitMode.CONTAIN, description="How image fits in the area")
     alt_text: str = Field(default="", description="Alternative text for accessibility")

@@ -85,9 +85,9 @@ class Alignment(str, Enum):
 class FitMode(str, Enum):
     """Image fit modes."""
 
-    FILL = "fill"  # Fill the area, may crop
-    FIT = "fit"  # Fit within area, maintain aspect ratio
-    STRETCH = "stretch"  # Stretch to fill, may distort
+    CONTAIN = "contain"  # Fit within area, maintain aspect ratio (with margins)
+    COVER = "cover"  # Cover entire area, maintain aspect ratio (may crop)
+    FILL = "fill"  # Fill the area, ignore aspect ratio (may distort)  # Stretch to fill, may distort
 
 
 BackgroundType = Literal["color", "image", "gradient", "none"]
