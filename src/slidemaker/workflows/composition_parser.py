@@ -35,7 +35,7 @@ class CompositionParser:
         >>> pages = parser.parse_pages(composition["pages"])
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """CompositionParserの初期化"""
         self.logger = structlog.get_logger(__name__)
 

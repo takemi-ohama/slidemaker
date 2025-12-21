@@ -19,6 +19,9 @@ class PageDefinition(BaseModel):
     background_color: str | None = Field(
         default=None, pattern=r"^#[0-9A-Fa-f]{6}$", description="Optional background color override"
     )
+    background_image: str | None = Field(
+        default=None, description="Optional background image path"
+    )
 
     def add_element(self, element: TextElement | ImageElement) -> None:
         """Add an element to the page."""

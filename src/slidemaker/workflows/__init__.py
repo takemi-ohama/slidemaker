@@ -26,15 +26,21 @@ Example:
 """
 
 from slidemaker.workflows.base import WorkflowOrchestrator
+from slidemaker.workflows.composition_parser import CompositionParser
 from slidemaker.workflows.exceptions import (
     WorkflowError,
     WorkflowStepError,
     WorkflowTimeoutError,
     WorkflowValidationError,
 )
+from slidemaker.workflows.image_coordinator import ImageCoordinator
+from slidemaker.workflows.new_slide import NewSlideWorkflow
 
 __all__ = [
     "WorkflowOrchestrator",
+    "NewSlideWorkflow",
+    "CompositionParser",
+    "ImageCoordinator",
     "WorkflowError",
     "WorkflowStepError",
     "WorkflowTimeoutError",

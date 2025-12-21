@@ -8,8 +8,9 @@ Main Components:
 
 import asyncio
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar, cast
 
 import structlog
 
@@ -47,7 +48,7 @@ class WorkflowOrchestrator(ABC):
         self,
         llm_manager: LLMManager,
         file_manager: FileManager,
-    ):
+    ) -> None:
         """ワークフローオーケストレーターの初期化
 
         Args:
@@ -59,7 +60,7 @@ class WorkflowOrchestrator(ABC):
         self.logger = structlog.get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def execute(self, input_data: Any, output_path: Path, **options) -> Path:
+    async def execute(self, input_data: Any, output_path: Path, **options: Any) -> Path:
         """ワークフローの実行
 
         サブクラスで実装する必要があります。
@@ -75,16 +76,16 @@ class WorkflowOrchestrator(ABC):
         Raises:
             WorkflowError: ワークフロー実行エラー
         """
-        pass
+        raise NotImplementedError
 
     async def _run_step(
         self,
         step_name: str,
         step_func: Callable[..., T],
-        *args,
+        *args: Any,
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ) -> T:
         """ステップの実行とエラーハンドリング
 
@@ -125,7 +126,7 @@ class WorkflowOrchestrator(ABC):
                     result = step_func(*args, **kwargs)
 
                 self.logger.info("workflow_step_success", step=step_name)
-                return result
+                return cast(T, result)
 
             except Exception as e:
                 self.logger.warning(
@@ -157,10 +158,14 @@ class WorkflowOrchestrator(ABC):
                         details={"original_error": str(e), "error_type": type(e).__name__},
                     ) from e
 
+        # Unreachable: すべてのケースは上でカバーされています
+        raise AssertionError("Should never reach here")  # pragma: no cover
+
     def _validate_input(self, input_data: Any) -> None:
         """入力データのバリデーション
 
         サブクラスでオーバーライドして、入力データの妥当性を検証します。
+        デフォルト実装では何もしません（バリデーションなし）。
 
         Args:
             input_data: 入力データ
@@ -169,7 +174,8 @@ class WorkflowOrchestrator(ABC):
             ValueError: 入力データが不正な場合
             WorkflowValidationError: バリデーションエラー
         """
-        pass  # サブクラスでオーバーライド
+        # デフォルト実装: バリデーションなし（サブクラスでオーバーライド可能）
+        return
 
     def _validate_output_path(self, output_path: Path) -> None:
         """出力パスのバリデーション
@@ -188,7 +194,7 @@ class WorkflowOrchestrator(ABC):
         """
         try:
             # FileManagerを使用してパストラバーサル対策
-            self.file_manager.validate_output_path(output_path)
+            self.file_manager._validate_output_path(output_path)
             self.logger.debug("output_path_validated", path=str(output_path))
         except Exception as e:
             error_msg = f"Invalid output path: {output_path}"

@@ -9,6 +9,8 @@ Exception Hierarchy:
     └── WorkflowValidationError: バリデーションエラー
 """
 
+from typing import Any
+
 
 class WorkflowError(Exception):
     """ワークフロー関連のベース例外
@@ -20,7 +22,7 @@ class WorkflowError(Exception):
         details: 追加の詳細情報（オプション）
     """
 
-    def __init__(self, message: str, details: dict | None = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         """WorkflowErrorの初期化
 
         Args:
@@ -57,8 +59,8 @@ class WorkflowStepError(WorkflowError):
         message: str,
         step_name: str | None = None,
         attempt: int | None = None,
-        details: dict | None = None,
-    ):
+        details: dict[str, Any] | None = None,
+    ) -> None:
         """WorkflowStepErrorの初期化
 
         Args:
@@ -100,8 +102,8 @@ class WorkflowTimeoutError(WorkflowError):
         self,
         message: str,
         timeout_seconds: float | None = None,
-        details: dict | None = None,
-    ):
+        details: dict[str, Any] | None = None,
+    ) -> None:
         """WorkflowTimeoutErrorの初期化
 
         Args:
@@ -139,8 +141,8 @@ class WorkflowValidationError(WorkflowError):
         self,
         message: str,
         validation_errors: list[str] | None = None,
-        details: dict | None = None,
-    ):
+        details: dict[str, Any] | None = None,
+    ) -> None:
         """WorkflowValidationErrorの初期化
 
         Args:

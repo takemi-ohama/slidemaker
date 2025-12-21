@@ -38,7 +38,7 @@ class ImageCoordinator:
         >>> results = await coordinator.generate_images(requests)
     """
 
-    def __init__(self, llm_manager: LLMManager):
+    def __init__(self, llm_manager: LLMManager) -> None:
         """ImageCoordinatorの初期化
 
         Args:
@@ -106,10 +106,10 @@ class ImageCoordinator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # 結果の集約
-        generated_images = {}
-        errors = []
+        generated_images: dict[str, Path] = {}
+        errors: list[tuple[str, Exception]] = []
 
-        for request, result in zip(image_requests, results):
+        for request, result in zip(image_requests, results, strict=True):
             image_id = request["id"]
 
             if isinstance(result, Exception):
@@ -120,7 +120,7 @@ class ImageCoordinator:
                     error=str(result),
                     error_type=type(result).__name__,
                 )
-            else:
+            elif isinstance(result, Path):
                 generated_images[image_id] = result
                 self.logger.debug(
                     "image_generated",
