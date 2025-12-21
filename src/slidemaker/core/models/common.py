@@ -87,7 +87,7 @@ class FitMode(str, Enum):
 
     CONTAIN = "contain"  # Fit within area, maintain aspect ratio (with margins)
     COVER = "cover"  # Cover entire area, maintain aspect ratio (may crop)
-    FILL = "fill"  # Fill the area, ignore aspect ratio (may distort)  # Stretch to fill, may distort
+    FILL = "fill"  # Fill the area, ignore aspect ratio (may distort)
 
 
 BackgroundType = Literal["color", "image", "gradient", "none"]

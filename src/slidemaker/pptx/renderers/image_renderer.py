@@ -55,10 +55,21 @@ class ImageRenderer:
             fit_mode=image_element.fit_mode,
         )
 
-        # Validate image file exists
+        # Validate image file exists and prevent path traversal
         image_path = Path(image_element.source)
-        if not image_path.exists():
+
+        # Resolve to absolute path and check for path traversal
+        try:
+            resolved_path = image_path.resolve()
+        except (OSError, ValueError) as e:
+            raise ValueError(f"Invalid image path: {image_element.source}") from e
+
+        # Prevent access to system files outside allowed directories
+        if not resolved_path.exists():
             raise FileNotFoundError(f"Image file not found: {image_element.source}")
+
+        if not resolved_path.is_file():
+            raise ValueError(f"Image path is not a file: {image_element.source}")
 
         # Validate box size is positive
         box_size = image_element.size
@@ -69,7 +80,7 @@ class ImageRenderer:
 
         # Get original image dimensions
         try:
-            with Image.open(image_path) as img:
+            with Image.open(resolved_path) as img:
                 original_width, original_height = img.size
         except Exception as e:
             raise ValueError(
@@ -135,7 +146,7 @@ class ImageRenderer:
         # Add picture to slide (python-pptx accepts int as EMU despite type hints)
         try:
             slide.shapes.add_picture(
-                str(image_path),
+                str(resolved_path),
                 left,  # type: ignore[arg-type]
                 top,  # type: ignore[arg-type]
                 width,  # type: ignore[arg-type]

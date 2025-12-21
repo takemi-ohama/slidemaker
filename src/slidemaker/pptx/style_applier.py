@@ -181,14 +181,20 @@ class StyleApplier:
             >>> template_path = Path("corporate_template.pptx")
             >>> prs = applier._load_template(template_path)
         """
-        if not template_path.exists():
+        # Validate and resolve template path to prevent path traversal
+        try:
+            resolved_path = template_path.resolve()
+        except (OSError, ValueError) as e:
+            raise TemplateNotFoundError(f"Invalid template path: {template_path}") from e
+
+        if not resolved_path.exists():
             error_msg = f"Template file not found: {template_path}"
             logger.error("template_file_not_found", path=str(template_path))
             raise TemplateNotFoundError(error_msg)
 
         try:
             logger.info("loading_template", path=str(template_path))
-            presentation = Presentation(str(template_path))
+            presentation = Presentation(str(resolved_path))
             logger.info("template_loaded_successfully", path=str(template_path))
             return presentation
         except Exception as e:

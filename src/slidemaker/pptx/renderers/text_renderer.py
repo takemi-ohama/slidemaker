@@ -95,8 +95,16 @@ class TextRenderer:
         """
         font = run.font
 
-        # Font family
-        font.name = font_config.family
+        # Font family - validate font name to prevent injection
+        font_name = font_config.family.strip()
+        if not font_name or len(font_name) > 100:  # Reasonable length limit
+            raise ValueError(f"Invalid font name: {font_config.family}")
+
+        # Basic validation to prevent control characters that could cause issues
+        if any(char in font_name for char in ["\n", "\r", "\t", "\x00"]):
+            raise ValueError(f"Font name contains invalid characters: {font_config.family}")
+
+        font.name = font_name
 
         # Font size (convert points to EMU)
         font.size = Pt(font_config.size)

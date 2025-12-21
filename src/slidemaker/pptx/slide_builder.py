@@ -182,16 +182,22 @@ class SlideBuilder:
             >>> image_path = Path("background.jpg")
             >>> builder._set_background_image(slide, image_path)
         """
-        if not image_path.exists():
+        # Validate and resolve image path to prevent path traversal
+        try:
+            resolved_path = image_path.resolve()
+        except (OSError, ValueError) as e:
+            raise ValueError(f"Invalid background image path: {image_path}") from e
+
+        if not resolved_path.exists():
             raise FileNotFoundError(f"Background image not found: {image_path}")
 
-        if not image_path.is_file():
+        if not resolved_path.is_file():
             raise ValueError(f"Background image path is not a file: {image_path}")
 
         # Add image covering the entire slide
         left = top = Inches(0)
         slide.shapes.add_picture(
-            str(image_path),
+            str(resolved_path),
             left,
             top,
             width=self.presentation.slide_width,

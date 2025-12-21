@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from pptx.util import Inches
+
 from slidemaker.core.models.common import Alignment, Position, Size
 from slidemaker.core.models.element import FontConfig, ImageElement, TextElement
 from slidemaker.core.models.page_definition import PageDefinition
@@ -26,16 +28,16 @@ def test_phase2_integration():
             background_color="#F0F0F0",
             elements=[
                 TextElement(
-                    position=Position(x=100, y=200),
-                    size=Size(width=800, height=100),
+                    position=Position(x=int(Inches(1)), y=int(Inches(2))),
+                    size=Size(width=int(Inches(8)), height=int(Inches(1))),
                     content="Slidemaker Phase 2統合",
                     font=FontConfig(family="Arial", size=44, bold=True),
                     alignment=Alignment.CENTER,
                     z_index=1,
                 ),
                 TextElement(
-                    position=Position(x=100, y=350),
-                    size=Size(width=800, height=50),
+                    position=Position(x=int(Inches(1)), y=int(Inches(3.5))),
+                    size=Size(width=int(Inches(8)), height=int(Inches(0.5))),
                     content="PowerPoint生成機能の統合確認",
                     font=FontConfig(family="Arial", size=28),
                     alignment=Alignment.CENTER,
@@ -50,16 +52,16 @@ def test_phase2_integration():
             background_color="#FFFFFF",
             elements=[
                 TextElement(
-                    position=Position(x=50, y=50),
-                    size=Size(width=900, height=60),
+                    position=Position(x=int(Inches(0.5)), y=int(Inches(0.5))),
+                    size=Size(width=int(Inches(9)), height=int(Inches(0.6))),
                     content="統合内容",
                     font=FontConfig(family="Arial", size=36, bold=True),
                     alignment=Alignment.LEFT,
                     z_index=1,
                 ),
                 TextElement(
-                    position=Position(x=50, y=150),
-                    size=Size(width=900, height=400),
+                    position=Position(x=int(Inches(0.5)), y=int(Inches(1.5))),
+                    size=Size(width=int(Inches(9)), height=int(Inches(4))),
                     content=(
                         "✓ SlideBuilderにTextRendererを統合\n"
                         "✓ SlideBuilderにImageRendererを統合\n"
