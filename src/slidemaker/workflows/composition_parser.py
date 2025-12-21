@@ -11,7 +11,7 @@ from typing import Any
 import structlog
 from pydantic import ValidationError
 
-from slidemaker.core.models.common import Alignment, FitMode, Position, Size
+from slidemaker.core.models.common import Alignment, Color, FitMode, Position, Size
 from slidemaker.core.models.element import FontConfig, ImageElement, TextElement
 from slidemaker.core.models.page_definition import PageDefinition
 from slidemaker.core.models.slide_config import SlideConfig
@@ -113,7 +113,7 @@ class CompositionParser:
                 page = PageDefinition(**normalized)
                 pages.append(page)
 
-            except ValidationError as e:
+            except (ValidationError, KeyError, ValueError) as e:
                 error_msg = f"Failed to parse page {i + 1}: {e}"
                 self.logger.error("page_parse_error", page_number=i + 1, error=str(e))
                 raise WorkflowValidationError(error_msg) from e
@@ -219,10 +219,17 @@ class CompositionParser:
 
         # FontConfig
         font_data = data.get("font", {})
+        color_value = font_data.get("color", "#000000")
+        # Colorインスタンスを作成（文字列または既にColorインスタンスの場合）
+        if isinstance(color_value, str):
+            color = Color(hex_value=color_value)
+        else:
+            color = color_value  # すでにColorインスタンス
+
         font = FontConfig(
             family=font_data.get("family", "Arial"),
             size=font_data.get("size", 18),
-            color=font_data.get("color", "#000000"),
+            color=color,
             bold=font_data.get("bold", False),
             italic=font_data.get("italic", False),
             underline=font_data.get("underline", False),
