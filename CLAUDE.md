@@ -100,7 +100,13 @@ slidemaker/
 │   │   ├── styles/
 │   │   │   └── style_applier.py  # スタイル適用
 │   │   └── exceptions.py         # PowerPoint固有例外
-│   ├── workflows/                # ワークフロー（未実装）
+│   ├── workflows/                # ワークフロー（Phase 3実装完了）
+│   │   ├── __init__.py
+│   │   ├── base.py               # WorkflowOrchestrator基底クラス
+│   │   ├── new_slide.py          # NewSlideWorkflow（Markdown → PowerPoint）
+│   │   ├── composition_parser.py # CompositionParser（LLM出力パース）
+│   │   ├── image_coordinator.py  # ImageCoordinator（画像生成調整）
+│   │   └── exceptions.py         # ワークフロー固有例外
 │   ├── image_processing/         # 画像処理（未実装）
 │   ├── cli/                      # CLIインターフェース（未実装）
 │   └── api/                      # WebAPI（未実装）
@@ -108,7 +114,8 @@ slidemaker/
 ├── docs/                         # ドキュメント
 │   ├── getting_started.md        # スタートガイド
 │   ├── phase1_summary.md         # Phase 1実装サマリー
-│   └── phase2_summary.md         # Phase 2実装サマリー
+│   ├── phase2_summary.md         # Phase 2実装サマリー
+│   └── phase3_summary.md         # Phase 3実装サマリー
 ├── examples/                     # サンプルファイル
 │   ├── config.yaml.example       # 設定サンプル
 │   └── sample_presentation.md    # プレゼンサンプル
@@ -150,15 +157,17 @@ slidemaker/
 
 詳細: [docs/phase2_summary.md](docs/phase2_summary.md)
 
-### Phase 3: 新規作成ワークフロー ⏳ 未着手
+### Phase 3: 新規作成ワークフロー ✅ 100%完了
 
-**実装予定**:
-- WorkflowOrchestrator（基底クラス）
-- NewSlideWorkflow（Markdown → PowerPoint）
-- CompositionParser（LLM出力パース）
-- ImageCoordinator（画像生成調整）
+**実装済み**:
+- ✅ WorkflowOrchestrator（基底クラス、リトライ機能付き）
+- ✅ NewSlideWorkflow（Markdown → PowerPoint完全パイプライン）
+- ✅ CompositionParser（LLM出力パース、バリデーション）
+- ✅ ImageCoordinator（並列画像生成、キャッシング）
+- ✅ 包括的なテスト（82テスト、カバレッジ90%以上）
+- ✅ 型安全性（mypy strict mode対応）
 
-推定工数: 2-3週
+詳細: [docs/phase3_summary.md](docs/phase3_summary.md)
 
 ### Phase 4: PDF/画像変換ワークフロー ⏳ 未着手
 
@@ -431,6 +440,7 @@ export LOG_FORMAT="console"  # または "json"
 ### 実装サマリー
 - [Phase 1実装サマリー](docs/phase1_summary.md)
 - [Phase 2実装サマリー](docs/phase2_summary.md)
+- [Phase 3実装サマリー](docs/phase3_summary.md)
 
 ### サンプル
 - [設定ファイルサンプル](examples/config.yaml.example)
@@ -444,21 +454,26 @@ export LOG_FORMAT="console"  # または "json"
 
 ## 次のステップ
 
-### 短期（Phase 3）
-1. ワークフローオーケストレーターの実装
-2. 新規作成ワークフローの実装（Markdown → PowerPoint）
-3. CompositionParserの実装（LLM出力パース）
-4. ImageCoordinatorの実装（画像生成調整）
+### 短期（Phase 4）
+1. ImageLoaderの実装（PDF/画像読み込み）
+2. ImageAnalyzerの実装（LLM画像分析）
+3. ImageProcessorの実装（画像抽出・加工）
+4. ConversionWorkflowの実装（変換パイプライン）
+5. Phase 4の包括的なテスト
 
-### 中期（Phase 4-5）
-1. PDF/画像変換ワークフローの実装
-2. CLIインターフェースの実装
-3. エンドツーエンドテスト
+### 中期（Phase 5）
+1. Typerベースのコマンドラインインターフェース
+2. createコマンド（Markdown → PowerPoint）
+3. convertコマンド（PDF/画像 → PowerPoint）
+4. Rich出力フォーマット
+5. エンドツーエンドテスト
 
 ### 長期（Phase 6）
-1. WebUIの実装（React + TypeScript）
-2. AWSへのデプロイ（Lambda + API Gateway）
-3. PyPIへの公開
+1. FastAPI バックエンドAPIの実装
+2. React + TypeScript フロントエンドの実装
+3. AWS CDKインフラ定義
+4. CI/CDパイプラインの構築
+5. PyPIへの公開
 
 ## トラブルシューティング
 
@@ -490,6 +505,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ---
 
 **最終更新**: 2025-12-21
-**バージョン**: 0.2.0 (Phase 2: 100%完了)
+**バージョン**: 0.3.0 (Phase 3: 100%完了)
 **メンテナー**: Claude Code + Project Team
 @CLAUDE.ndf.md
