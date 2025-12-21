@@ -158,7 +158,7 @@ class TestImageElement:
         )
         assert elem.element_type == "image"
         assert elem.source == "image.png"
-        assert elem.fit_mode == FitMode.FIT
+        assert elem.fit_mode == FitMode.CONTAIN
 
     def test_image_element_with_alt_text(self):
         """Test image element with alt text."""

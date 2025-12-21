@@ -61,7 +61,55 @@ uv pip install -e ".[dev]"
 
 ## Usage
 
-### CLI版
+### PowerPoint生成ライブラリとしての使用（Phase 2完了）
+
+```python
+from pathlib import Path
+from slidemaker.pptx import PowerPointGenerator
+from slidemaker.core.models import (
+    SlideConfig,
+    PageDefinition,
+    TextElement,
+    Position,
+    Size,
+    FontConfig,
+    Color,
+)
+
+# スライド設定
+config = SlideConfig(
+    size="16:9",
+    default_font="Arial",
+    default_font_size=18
+)
+
+# ページ定義
+pages = [
+    PageDefinition(
+        title="タイトルスライド",
+        elements=[
+            TextElement(
+                content="Phase 2完了！",
+                position=Position(x=100, y=100),
+                size=Size(width=800, height=600),
+                font=FontConfig(
+                    name="Arial",
+                    size=44,
+                    color=Color(hex_value="#0066cc"),
+                    bold=True
+                )
+            )
+        ]
+    )
+]
+
+# PowerPoint生成
+generator = PowerPointGenerator(config)
+output_path = generator.generate(pages, "output/presentation.pptx")
+print(f"PowerPointファイルを生成しました: {output_path}")
+```
+
+### CLI版（Phase 5で実装予定）
 
 #### 新規作成
 ```bash
@@ -172,12 +220,12 @@ MIT License - see [LICENSE](LICENSE) file for details
 ## Roadmap
 
 - [x] Phase 0: プロジェクトセットアップ
-- [ ] Phase 1: コアモデルとLLM統合
-- [ ] Phase 2: 新規作成モード実装
-- [ ] Phase 3: PDF/画像変換モード実装
-- [ ] Phase 4: CLI版完成
-- [ ] Phase 5: WebUI版開発
-- [ ] Phase 6: デプロイとCI/CD整備
+- [x] Phase 1: コアモデルとLLM統合（100%完了）
+- [x] Phase 2: PowerPoint生成機能（100%完了）
+- [ ] Phase 3: 新規作成ワークフロー実装
+- [ ] Phase 4: PDF/画像変換ワークフロー実装
+- [ ] Phase 5: CLIインターフェース実装
+- [ ] Phase 6: WebUI版開発とデプロイ
 
 詳細な開発計画は[開発フェーズドキュメント](issues/PLAN01/04_development_phases.md)を参照してください。
 
