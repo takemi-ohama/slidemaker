@@ -366,6 +366,14 @@ class ImageAnalyzer:
         x = position_data.get("x", 0)
         y = position_data.get("y", 0)
 
+        # ゼロ除算チェック
+        if original_image_size[0] == 0 or original_image_size[1] == 0:
+            self.logger.warning(
+                "Invalid original image size (zero dimension), returning default position (0, 0)",
+                original_size=original_image_size,
+            )
+            return Position(x=0, y=0)
+
         # 元画像とスライドのスケール比を計算
         scale_x = slide_dimensions[0] / original_image_size[0]
         scale_y = slide_dimensions[1] / original_image_size[1]
@@ -401,6 +409,14 @@ class ImageAnalyzer:
         """
         width = size_data.get("width", 100)
         height = size_data.get("height", 50)
+
+        # ゼロ除算チェック
+        if original_image_size[0] == 0 or original_image_size[1] == 0:
+            self.logger.warning(
+                "Invalid original image size (zero dimension), returning default size (100, 50)",
+                original_size=original_image_size,
+            )
+            return Size(width=100, height=50)
 
         # 元画像とスライドのスケール比を計算
         scale_x = slide_dimensions[0] / original_image_size[0]

@@ -385,6 +385,17 @@ class ConversionWorkflow(WorkflowOrchestrator):
                     # PageDefinitionのpositionとsizeは相対座標（%）なので、
                     # 実際のピクセル座標に変換
                     img_width, img_height = image.size
+
+                    # ゼロ除算チェック
+                    if img_width == 0 or img_height == 0:
+                        self.logger.warning(
+                            "Invalid image size (zero dimension), skipping element",
+                            page_idx=page_idx,
+                            elem_idx=elem_idx,
+                            image_size=(img_width, img_height),
+                        )
+                        continue
+
                     x_px = int(element.position.x * img_width / 100)
                     y_px = int(element.position.y * img_height / 100)
                     width_px = int(element.size.width * img_width / 100)

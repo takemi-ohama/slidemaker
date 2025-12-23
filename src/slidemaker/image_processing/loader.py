@@ -186,41 +186,19 @@ class ImageLoader:
                 error_msg, file_path=str(pdf_path), details={"error": str(e)}
             ) from e
 
-        try:
-            # PDFを画像に変換（非同期実行）
-            import asyncio
+        # PDFを画像に変換（非同期実行）
+        import asyncio
 
-            loop = asyncio.get_event_loop()
-            images = await loop.run_in_executor(
-                None,
-                lambda: convert_from_path(
-                    pdf_file,
-                    dpi=dpi,
-                    fmt="PNG",
-                    thread_count=2,  # メモリ効率とパフォーマンスのバランス
-                ),
-            )
-
-        except PDFPageCountError as e:
-            error_msg = f"Failed to determine PDF page count: {e}"
-            self.logger.error(error_msg, pdf_path=str(pdf_path))
-            raise ImageLoadError(
-                error_msg, file_path=str(pdf_path), details={"error": str(e)}
-            ) from e
-
-        except PDFSyntaxError as e:
-            error_msg = f"PDF syntax error or corrupted file: {e}"
-            self.logger.error(error_msg, pdf_path=str(pdf_path))
-            raise ImageLoadError(
-                error_msg, file_path=str(pdf_path), details={"error": str(e)}
-            ) from e
-
-        except Exception as e:
-            error_msg = f"Unexpected error while loading PDF: {e}"
-            self.logger.error(error_msg, pdf_path=str(pdf_path), error_type=type(e).__name__)
-            raise ImageLoadError(
-                error_msg, file_path=str(pdf_path), details={"error": str(e)}
-            ) from e
+        loop = asyncio.get_event_loop()
+        images = await loop.run_in_executor(
+            None,
+            lambda: convert_from_path(
+                pdf_file,
+                dpi=dpi,
+                fmt="PNG",
+                thread_count=2,  # メモリ効率とパフォーマンスのバランス
+            ),
+        )
 
         self.logger.info(
             "PDF loaded successfully",
