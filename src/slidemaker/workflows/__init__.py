@@ -27,6 +27,7 @@ Example:
 
 from slidemaker.workflows.base import WorkflowOrchestrator
 from slidemaker.workflows.composition_parser import CompositionParser
+from slidemaker.workflows.conversion import ConversionWorkflow
 from slidemaker.workflows.exceptions import (
     WorkflowError,
     WorkflowStepError,
@@ -39,6 +40,7 @@ from slidemaker.workflows.new_slide import NewSlideWorkflow
 __all__ = [
     "WorkflowOrchestrator",
     "NewSlideWorkflow",
+    "ConversionWorkflow",
     "CompositionParser",
     "ImageCoordinator",
     "WorkflowError",

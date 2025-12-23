@@ -107,7 +107,12 @@ slidemaker/
 │   │   ├── composition_parser.py # CompositionParser（LLM出力パース）
 │   │   ├── image_coordinator.py  # ImageCoordinator（画像生成調整）
 │   │   └── exceptions.py         # ワークフロー固有例外
-│   ├── image_processing/         # 画像処理（未実装）
+│   ├── image_processing/         # 画像処理 ✅
+│   │   ├── __init__.py
+│   │   ├── loader.py             # ImageLoader（PDF/画像読み込み）
+│   │   ├── analyzer.py           # ImageAnalyzer（LLM画像分析）
+│   │   ├── processor.py          # ImageProcessor（画像要素抽出）
+│   │   └── exceptions.py         # 画像処理固有例外
 │   ├── cli/                      # CLIインターフェース（未実装）
 │   └── api/                      # WebAPI（未実装）
 ├── tests/                        # テストスイート
@@ -115,7 +120,8 @@ slidemaker/
 │   ├── getting_started.md        # スタートガイド
 │   ├── phase1_summary.md         # Phase 1実装サマリー
 │   ├── phase2_summary.md         # Phase 2実装サマリー
-│   └── phase3_summary.md         # Phase 3実装サマリー
+│   ├── phase3_summary.md         # Phase 3実装サマリー
+│   └── phase4_summary.md         # Phase 4実装サマリー
 ├── examples/                     # サンプルファイル
 │   ├── config.yaml.example       # 設定サンプル
 │   └── sample_presentation.md    # プレゼンサンプル
@@ -169,15 +175,17 @@ slidemaker/
 
 詳細: [docs/phase3_summary.md](docs/phase3_summary.md)
 
-### Phase 4: PDF/画像変換ワークフロー ⏳ 未着手
+### Phase 4: PDF/画像変換ワークフロー ✅ 100%完了
 
-**実装予定**:
-- ImageLoader（PDF/画像読み込み）
-- ImageAnalyzer（LLM画像分析）
-- ImageProcessor（画像抽出・加工）
-- ConversionWorkflow（変換パイプライン）
+**実装済み**:
+- ✅ ImageLoader（PDF/画像読み込み、正規化）
+- ✅ ImageAnalyzer（LLM画像分析、座標正規化）
+- ✅ ImageProcessor（画像要素抽出・保存）
+- ✅ ConversionWorkflow（5ステップ変換パイプライン）
+- ✅ 包括的なテスト（109テスト、カバレッジ88%）
+- ✅ セキュリティ対策（パストラバーサル、サイズ制限、OWASP Top 10準拠）
 
-推定工数: 3-4週
+詳細: [docs/phase4_summary.md](docs/phase4_summary.md)
 
 ### Phase 5: CLIインターフェース ⏳ 未着手
 
@@ -454,14 +462,7 @@ export LOG_FORMAT="console"  # または "json"
 
 ## 次のステップ
 
-### 短期（Phase 4）
-1. ImageLoaderの実装（PDF/画像読み込み）
-2. ImageAnalyzerの実装（LLM画像分析）
-3. ImageProcessorの実装（画像抽出・加工）
-4. ConversionWorkflowの実装（変換パイプライン）
-5. Phase 4の包括的なテスト
-
-### 中期（Phase 5）
+### 短期（Phase 5）
 1. Typerベースのコマンドラインインターフェース
 2. createコマンド（Markdown → PowerPoint）
 3. convertコマンド（PDF/画像 → PowerPoint）
@@ -498,6 +499,18 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 - output_base_dirの書き込み権限を確認
 - パストラバーサル防止機能により正しいディレクトリ内かチェック
 
+**Q: PDF変換が失敗する**
+- poppler-utilsがインストールされているか確認
+  - Ubuntu/Debian: `apt-get install poppler-utils`
+  - macOS: `brew install poppler`
+- PDFページ数が制限（100ページ）を超えていないか確認
+- PDFファイルが破損していないか確認
+
+**Q: 画像分析が不正確**
+- LLM APIキーが有効か確認
+- 画像の解像度が十分か確認（推奨: 1920x1080以上）
+- 複雑なレイアウトの場合は手動修正が必要な場合あり（Phase 5で対応予定）
+
 ## ライセンス
 
 このプロジェクトのライセンスについては [LICENSE](LICENSE) を参照してください。
@@ -505,6 +518,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ---
 
 **最終更新**: 2025-12-21
-**バージョン**: 0.3.0 (Phase 3: 100%完了)
+**バージョン**: 0.4.0 (Phase 4: 100%完了)
 **メンテナー**: Claude Code + Project Team
 @CLAUDE.ndf.md
