@@ -8,7 +8,7 @@ Main Components:
 
 import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
@@ -81,7 +81,7 @@ class WorkflowOrchestrator(ABC):
     async def _run_step(
         self,
         step_name: str,
-        step_func: Callable[..., T],
+        step_func: Callable[..., T] | Callable[..., Coroutine[Any, Any, T]],
         *args: Any,
         max_retries: int = 3,
         retry_delay: float = 1.0,
