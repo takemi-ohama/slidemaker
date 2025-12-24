@@ -156,6 +156,7 @@ class ConversionWorkflow(WorkflowOrchestrator):
                 self._load_images,
                 input_path,
                 dpi,
+                temp_dir,
                 max_retries=max_retries,
             )
 
@@ -264,17 +265,20 @@ class ConversionWorkflow(WorkflowOrchestrator):
         self,
         input_path: Path,
         dpi: int,
+        temp_dir: Path | None = None,
     ) -> list[Image.Image]:
         """画像の読み込み（Step 1）.
 
-        PDFの場合はページ画像に変換、画像ファイルの場合はそのまま読み込みます。
+        PDFの場合はページごとにPNGファイルとして保存してから読み込み、
+        画像ファイルの場合はそのまま読み込みます。
 
         Args:
             input_path: 入力ファイルパス
             dpi: PDF変換時のDPI
+            temp_dir: 一時ディレクトリ（PDFページPNG保存用、オプション）
 
         Returns:
-            list[Image.Image]: 読み込んだ画像のリスト
+            list[Image.Image]: 読み込んだ画像のリスト（正規化済み）
 
         Raises:
             WorkflowError: 画像読み込みエラー
@@ -283,15 +287,42 @@ class ConversionWorkflow(WorkflowOrchestrator):
             suffix = input_path.suffix.lower()
 
             if suffix == ".pdf":
-                # PDFからページ画像に変換
+                # PDFの場合：ページごとにPNGファイルとして保存してから読み込み
                 self.logger.info("loading_pdf", path=str(input_path), dpi=dpi)
-                images = await self.image_loader.load_from_pdf(input_path, dpi=dpi)
+
+                # 一時ディレクトリの準備
+                if temp_dir is None:
+                    temp_dir = input_path.parent / "temp_pdf_pages"
+                pdf_pages_dir = temp_dir / "pdf_pages"
+                pdf_pages_dir.mkdir(parents=True, exist_ok=True)
+
+                # PDFページをPNGファイルとして保存
+                png_paths = await self.image_loader.save_pdf_pages_as_png(
+                    input_path, pdf_pages_dir, dpi=dpi
+                )
+                self.logger.info(
+                    "pdf_pages_saved_as_png",
+                    page_count=len(png_paths),
+                    output_dir=str(pdf_pages_dir),
+                )
+
+                # 保存したPNGファイルを個別に読み込み、正規化
+                images: list[Image.Image] = []
+                for png_path in png_paths:
+                    self.logger.debug("loading_png_page", path=str(png_path))
+                    image = await self.image_loader.load_from_image(png_path)
+                    # 画像を正規化（1920x1080にリサイズ）してファイルサイズを削減
+                    normalized_image = self.image_loader.normalize_image(image)
+                    images.append(normalized_image)
+
                 self.logger.info("pdf_loaded", page_count=len(images))
             else:
                 # 画像ファイルの読み込み
                 self.logger.info("loading_image", path=str(input_path))
                 image = await self.image_loader.load_from_image(input_path)
-                images = [image]
+                # 画像を正規化
+                normalized_image = self.image_loader.normalize_image(image)
+                images = [normalized_image]
                 self.logger.info("image_loaded")
 
             return images
@@ -436,7 +467,27 @@ class ConversionWorkflow(WorkflowOrchestrator):
                             image_id=image_id,
                             error=str(elem_error),
                         )
+                        # sourceを空文字列に設定（後でフィルタリング）
+                        element.source = ""
                         continue
+
+            # 不正なImageElementをフィルタリング
+            from slidemaker.core.models.element import ImageElement
+
+            for page in pages:
+                valid_elements = []
+                for element in page.elements:
+                    # ImageElementでsourceが空または存在しない場合はスキップ
+                    if isinstance(element, ImageElement) and (
+                        not element.source or not Path(element.source).exists()
+                    ):
+                        self.logger.warning(
+                            "Skipping ImageElement with invalid source",
+                            source=element.source,
+                        )
+                        continue
+                    valid_elements.append(element)
+                page.elements = valid_elements
 
             self.logger.info("images_processed", page_count=len(pages))
             return pages

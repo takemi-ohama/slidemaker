@@ -207,6 +207,164 @@ class ImageLoader:
         )
         return images
 
+    async def save_pdf_pages_as_png(
+        self, pdf_path: Path | str, output_dir: Path | str, dpi: int = DEFAULT_DPI
+    ) -> list[Path]:
+        """PDFページを個別のPNGファイルとして保存
+
+        PDFファイルの各ページを個別のPNGファイルとして指定ディレクトリに保存します。
+        この機能により、ページごとの処理が可能になり、メモリ効率が向上します。
+
+        Args:
+            pdf_path: PDFファイルパス（PathまたはstrString）
+            output_dir: 出力先ディレクトリ（PathまたはstrString）
+            dpi: 解像度（デフォルト200、品質と速度のバランス）
+
+        Returns:
+            list[Path]: 保存されたPNGファイルのパスリスト（ページ順）
+
+        Raises:
+            FileNotFoundError: PDFファイルが存在しない
+            ValueError: PDFページ数が50を超える、ファイルサイズが50MBを超える、またはDPIが不正
+            ImageLoadError: PDF変換失敗
+
+        Example:
+            >>> loader = ImageLoader(file_manager)
+            >>> png_paths = await loader.save_pdf_pages_as_png(
+            ...     "document.pdf",
+            ...     "temp/pages",
+            ...     dpi=300
+            ... )
+            >>> print(png_paths)
+            [Path('temp/pages/page_001.png'), Path('temp/pages/page_002.png'), ...]
+        """
+        self.logger.info(
+            "Saving PDF pages as PNG",
+            pdf_path=str(pdf_path),
+            output_dir=str(output_dir),
+            dpi=dpi,
+        )
+
+        # ファイルパスのバリデーション
+        pdf_file = Path(pdf_path) if isinstance(pdf_path, str) else pdf_path
+        if not pdf_file.exists():
+            error_msg = f"PDF file not found: {pdf_path}"
+            self.logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+
+        if not pdf_file.is_file():
+            error_msg = f"Path is not a file: {pdf_path}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if pdf_file.suffix.lower() != ".pdf":
+            error_msg = f"File is not a PDF: {pdf_path}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        # DPIのバリデーション
+        if dpi <= 0 or dpi > 600:
+            error_msg = f"Invalid DPI value: {dpi}. Must be between 1 and 600."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        # ファイルサイズチェック（変換前に実施）
+        file_size = os.path.getsize(pdf_file)
+        if file_size > MAX_FILE_SIZE_BYTES:
+            error_msg = (
+                f"PDF file size exceeds limit: {file_size} bytes "
+                f"({file_size / 1024 / 1024:.2f} MB) > {MAX_FILE_SIZE_MB} MB"
+            )
+            self.logger.error(error_msg, file_size=file_size)
+            raise ValueError(error_msg)
+
+        # PDFページ数チェック（変換前に実施）
+        try:
+            info = pdfinfo_from_path(str(pdf_file))
+            page_count = info.get("Pages", 0)
+            if page_count > MAX_PDF_PAGES:
+                error_msg = (
+                    f"PDF has too many pages: {page_count}. "
+                    f"Maximum allowed is {MAX_PDF_PAGES}."
+                )
+                self.logger.error(error_msg, page_count=page_count)
+                raise ValueError(error_msg)
+
+            self.logger.info(
+                "PDF validation passed",
+                page_count=page_count,
+                file_size_mb=f"{file_size / 1024 / 1024:.2f}",
+            )
+
+        except PDFPageCountError as e:
+            error_msg = f"Failed to determine PDF page count: {e}"
+            self.logger.error(error_msg, pdf_path=str(pdf_path))
+            raise ImageLoadError(
+                error_msg, file_path=str(pdf_path), details={"error": str(e)}
+            ) from e
+
+        except PDFSyntaxError as e:
+            error_msg = f"PDF syntax error or corrupted file: {e}"
+            self.logger.error(error_msg, pdf_path=str(pdf_path))
+            raise ImageLoadError(
+                error_msg, file_path=str(pdf_path), details={"error": str(e)}
+            ) from e
+
+        # 出力ディレクトリの作成
+        output_path = Path(output_dir) if isinstance(output_dir, str) else output_dir
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # PDFを画像に変換（非同期実行）
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+        images = await loop.run_in_executor(
+            None,
+            lambda: convert_from_path(
+                pdf_file,
+                dpi=dpi,
+                fmt="PNG",
+                thread_count=2,  # メモリ効率とパフォーマンスのバランス
+            ),
+        )
+
+        # 各ページをPNGファイルとして保存
+        saved_paths: list[Path] = []
+        for page_idx, image in enumerate(images, start=1):
+            # ファイル名: page_001.png, page_002.png, ...
+            filename = f"page_{page_idx:03d}.png"
+            png_path = output_path / filename
+
+            # 画像を保存（同期処理）
+            try:
+                image.save(str(png_path), "PNG")
+                saved_paths.append(png_path)
+                self.logger.debug(
+                    "PDF page saved as PNG",
+                    page_number=page_idx,
+                    path=str(png_path),
+                )
+            except Exception as save_error:
+                error_msg = f"Failed to save page {page_idx} as PNG: {save_error}"
+                self.logger.error(
+                    error_msg,
+                    page_number=page_idx,
+                    path=str(png_path),
+                )
+                raise ImageLoadError(
+                    error_msg,
+                    file_path=str(png_path),
+                    details={"page": page_idx, "error": str(save_error)},
+                ) from save_error
+
+        self.logger.info(
+            "PDF pages saved successfully",
+            page_count=len(saved_paths),
+            output_dir=str(output_path),
+        )
+
+        return saved_paths
+
     async def load_from_image(self, image_path: Path | str) -> Image.Image:
         """画像ファイルを読み込み
 
