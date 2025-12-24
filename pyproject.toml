@@ -32,6 +32,7 @@ dependencies = [
     "anthropic>=0.8.0",
     "google-generativeai>=0.3.0",
     "PyYAML>=6.0",
+    "boto3>=1.28.0",
 ]
 
 [project.optional-dependencies]
@@ -47,14 +48,16 @@ api = [
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
     "mangum>=0.17.0",
+    "aiobotocore>=2.15.0",
 ]
 infra = [
     "aws-cdk-lib>=2.100.0",
     "boto3>=1.28.0",
+    "aiobotocore>=2.15.0",
 ]
 
 [project.scripts]
-slidemaker = "slidemaker.cli.main:app"
+slidemaker = "slidemaker.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/slidemaker"
@@ -97,6 +100,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ANN", "T20"]
+"src/slidemaker/cli/commands/*" = ["B008"]  # Typer関数呼び出しはOK
 
 [tool.mypy]
 python_version = "3.13"
@@ -150,4 +154,9 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
     "@abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "types-pyyaml>=6.0.12.20250915",
 ]

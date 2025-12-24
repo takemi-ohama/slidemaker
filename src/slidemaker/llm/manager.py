@@ -1,6 +1,6 @@
 """LLM manager for handling multiple LLM adapters."""
 
-from typing import Any
+from typing import Any, cast
 
 from slidemaker.llm.base import LLMAdapter
 from slidemaker.utils.config_loader import LLMConfig
@@ -63,12 +63,15 @@ class LLMManager:
     def _create_api_adapter(self, config: LLMConfig) -> LLMAdapter:
         """Create API-based LLM adapter."""
         from slidemaker.llm.adapters.api import (
+            BedrockClaudeAdapter,
             ClaudeAdapter,
             GeminiAdapter,
             GPTAdapter,
         )
 
         provider_map = {
+            "bedrock-claude": BedrockClaudeAdapter,
+            "bedrock": BedrockClaudeAdapter,  # Alias
             "claude": ClaudeAdapter,
             "gpt": GPTAdapter,
             "openai": GPTAdapter,  # Alias
@@ -83,6 +86,21 @@ class LLMManager:
                 f"Supported: {list(provider_map.keys())}"
             )
 
+        # Bedrock-specific initialization
+        if adapter_class == BedrockClaudeAdapter:
+            region = config.extra_params.get("region", "us-east-1")
+            max_tokens = config.extra_params.get("max_tokens", 4096)
+            temperature = config.extra_params.get("temperature", 0.7)
+
+            return BedrockClaudeAdapter(
+                model=config.model,
+                region=region,
+                timeout=config.timeout,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+
+        # Standard API adapters require API key
         if not config.api_key:
             raise ValueError(f"API key required for provider: {config.provider}")
 
@@ -164,12 +182,23 @@ class LLMManager:
         Args:
             prompt: User prompt
             system_prompt: Optional system prompt
-            **kwargs: Additional parameters
+            **kwargs: Additional parameters (including image_data for Bedrock)
 
         Returns:
             Structured analysis data
         """
-        logger.info("Analyzing image", llm=self.composition_llm.__class__.__name__)
-        return await self.composition_llm.generate_structured(
-            prompt=prompt, system_prompt=system_prompt, **kwargs
-        )
+        logger.info("Analyzing image", llm=self.image_llm.__class__.__name__)
+
+        # Check if adapter has analyze_image method (e.g., BedrockClaudeAdapter)
+        if hasattr(self.image_llm, "analyze_image") and callable(
+            getattr(self.image_llm, "analyze_image")
+        ):
+            # Use adapter's specialized analyze_image method
+            analyze_method = getattr(self.image_llm, "analyze_image")
+            result = await analyze_method(prompt=prompt, system_prompt=system_prompt, **kwargs)
+            return cast(dict[str, Any], result)
+        else:
+            # Fallback to generate_structured for other adapters (e.g., ClaudeAdapter)
+            return await self.image_llm.generate_structured(
+                prompt=prompt, system_prompt=system_prompt, **kwargs
+            )
