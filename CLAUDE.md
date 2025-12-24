@@ -38,7 +38,8 @@ SlidemakerはAIを活用した次世代のPowerPoint生成ツールです。Mark
 ### バックエンド
 - **言語**: Python 3.13
 - **パッケージ管理**: uv (Rust製、高速)
-- **LLM統合**: Claude, GPT, Gemini (API + CLI)
+- **LLM統合**: Claude (Anthropic API / AWS Bedrock), GPT, Gemini (API + CLI)
+- **AWS SDK**: boto3 (Bedrock統合)
 - **バリデーション**: Pydantic v2
 - **HTTP**: httpx (非同期)
 - **ロギング**: structlog
@@ -78,9 +79,10 @@ slidemaker/
 │   │   ├── base.py               # LLMアダプタ基底クラス
 │   │   ├── manager.py            # LLMマネージャー
 │   │   ├── adapters/             # LLMアダプタ実装
-│   │   │   ├── api/              # API型（Claude, GPT, Gemini）
+│   │   │   ├── api/              # API型（Claude, Bedrock, GPT, Gemini）
 │   │   │   │   ├── base_api.py  # API基底クラス
-│   │   │   │   └── claude.py    # Claude実装 ✅
+│   │   │   │   ├── claude.py    # Claude (Anthropic API) ✅
+│   │   │   │   └── bedrock_claude.py # Claude (AWS Bedrock) ✅
 │   │   │   └── cli/              # CLI型（未実装）
 │   │   └── prompts/              # プロンプトテンプレート
 │   │       ├── composition.py    # 構成生成
@@ -123,7 +125,8 @@ slidemaker/
 │   ├── phase3_summary.md         # Phase 3実装サマリー
 │   └── phase4_summary.md         # Phase 4実装サマリー
 ├── examples/                     # サンプルファイル
-│   ├── config.yaml.example       # 設定サンプル
+│   ├── config.yaml.example       # 設定サンプル（Anthropic API）
+│   ├── config_bedrock.yaml.example # 設定サンプル（AWS Bedrock）
 │   └── sample_presentation.md    # プレゼンサンプル
 ├── issues/PLAN01/                # 開発計画
 │   ├── 00_overview.md            # プロジェクト概要
@@ -146,7 +149,8 @@ slidemaker/
 - ✅ ユーティリティ（logger, config_loader, file_manager）
 - ✅ LLM基盤（base, manager, prompts）
 - ✅ API基底アダプタ（base_api.py）
-- ✅ Claudeアダプタ（claude.py）
+- ✅ Claudeアダプタ（claude.py - Anthropic API）
+- ✅ BedrockClaudeアダプタ（bedrock_claude.py - AWS Bedrock）
 - ✅ セキュリティ修正（パストラバーサル、RGB検証、エラーハンドリング等）
 
 詳細: [docs/phase1_summary.md](docs/phase1_summary.md)
@@ -187,15 +191,17 @@ slidemaker/
 
 詳細: [docs/phase4_summary.md](docs/phase4_summary.md)
 
-### Phase 5: CLIインターフェース ⏳ 未着手
+### Phase 5: CLIインターフェース ✅ 100%完了
 
-**実装予定**:
-- Typerベースのコマンド
-- createコマンド（Markdown → PowerPoint）
-- convertコマンド（PDF/画像 → PowerPoint）
-- Rich出力フォーマット
+**実装済み**:
+- ✅ Typerベースのコマンドライン基盤（main.py）
+- ✅ CLIConfig（設定ファイル管理、環境変数オーバーライド）
+- ✅ OutputFormatter（Rich libraryによる美しい出力）
+- ✅ createコマンド（Markdown → PowerPoint）
+- ✅ convertコマンド（PDF/画像 → PowerPoint）
+- ✅ 包括的なテスト（122テスト、カバレッジ94%）
 
-推定工数: 1-2週
+詳細: [docs/phase5_summary.md](docs/phase5_summary.md)
 
 ### Phase 6: WebUIとデプロイメント ⏳ 未着手
 
@@ -229,6 +235,8 @@ Phase 1実装時にQAエージェントによる包括的なセキュリティ�
 
 ### config.yaml の例
 
+#### Anthropic API使用時
+
 ```yaml
 llm:
   composition:
@@ -259,6 +267,46 @@ logging:
 ```
 
 サンプル: [examples/config.yaml.example](examples/config.yaml.example)
+
+#### AWS Bedrock使用時
+
+```yaml
+llm:
+  composition:
+    type: "api"
+    provider: "bedrock-claude"  # または "bedrock"
+    model: "claude-3-5-sonnet-20241022"
+    # api_keyは不要（AWS認証情報を使用）
+    extra_params:
+      region: "us-east-1"  # AWS リージョン
+      max_tokens: 4096
+      temperature: 0.7
+    timeout: 300
+
+  image_generation:
+    type: "api"
+    provider: "bedrock-claude"
+    model: "claude-3-5-haiku-20241022"
+    extra_params:
+      region: "us-east-1"
+      max_tokens: 2048
+      temperature: 0.5
+    timeout: 300
+```
+
+**AWS認証**: Bedrockは以下の認証情報を使用します:
+- 環境変数: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`（オプション）
+- AWS credentials ファイル: `~/.aws/credentials`
+- IAMロール（EC2、Lambda等で実行時）
+
+**対応モデル**:
+- `claude-3-5-sonnet-20241022`（推奨）
+- `claude-3-5-haiku-20241022`（高速）
+- `claude-3-opus-20240229`
+- `claude-3-sonnet-20240229`
+- `claude-3-haiku-20240307`
+
+サンプル: [examples/config_bedrock.yaml.example](examples/config_bedrock.yaml.example)
 
 ## 重要な実装パターン
 
@@ -449,6 +497,8 @@ export LOG_FORMAT="console"  # または "json"
 - [Phase 1実装サマリー](docs/phase1_summary.md)
 - [Phase 2実装サマリー](docs/phase2_summary.md)
 - [Phase 3実装サマリー](docs/phase3_summary.md)
+- [Phase 4実装サマリー](docs/phase4_summary.md)
+- [Phase 5実装サマリー](docs/phase5_summary.md)
 
 ### サンプル
 - [設定ファイルサンプル](examples/config.yaml.example)
@@ -517,7 +567,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ---
 
-**最終更新**: 2025-12-21
-**バージョン**: 0.4.0 (Phase 4: 100%完了)
+**最終更新**: 2025-12-23
+**バージョン**: 0.5.0 (Phase 5: 100%完了)
 **メンテナー**: Claude Code + Project Team
 @CLAUDE.ndf.md

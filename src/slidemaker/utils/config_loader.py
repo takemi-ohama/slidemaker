@@ -17,6 +17,9 @@ class LLMConfig(BaseModel):
     api_key: str | None = Field(default=None, description="API key (for API type)")
     cli_command: str | None = Field(default=None, description="CLI command (for CLI type)")
     timeout: int = Field(default=300, description="Timeout in seconds")
+    extra_params: dict[str, Any] = Field(
+        default_factory=dict, description="Additional provider-specific parameters"
+    )
 
 
 class OutputConfig(BaseModel):

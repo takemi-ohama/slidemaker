@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 
 # 定数
 SUPPORTED_IMAGE_FORMATS = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = 50
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_PDF_PAGES = 50
 DEFAULT_DPI = 200
@@ -82,7 +82,7 @@ class ImageLoader:
     - PDFページをpdf2imageで画像リストに変換（DPI=200-300）
     - 各種画像形式の読み込み（PNG, JPEG, GIF, BMP）
     - 画像正規化（1920x1080、RGB変換）
-    - セキュリティ対策（FileManager使用、ファイルサイズ制限10MB、PDF最大50ページ）
+    - セキュリティ対策（FileManager使用、ファイルサイズ制限50MB、PDF最大50ページ）
 
     Attributes:
         file_manager: ファイル管理用のFileManagerインスタンス
@@ -116,7 +116,7 @@ class ImageLoader:
 
         Raises:
             FileNotFoundError: PDFファイルが存在しない
-            ValueError: PDFページ数が50を超える、ファイルサイズが10MBを超える、またはDPIが不正
+            ValueError: PDFページ数が50を超える、ファイルサイズが50MBを超える、またはDPIが不正
             ImageLoadError: PDF変換失敗
         """
         self.logger.info("Loading PDF", pdf_path=str(pdf_path), dpi=dpi)
@@ -211,7 +211,7 @@ class ImageLoader:
         """画像ファイルを読み込み
 
         指定された画像ファイルを読み込みます。対応形式はPNG, JPEG, GIF, BMPです。
-        ファイルサイズは10MBまでに制限されています。
+        ファイルサイズは50MBまでに制限されています。
 
         Args:
             image_path: 画像ファイルパス（PathまたはstrString）
@@ -221,7 +221,7 @@ class ImageLoader:
 
         Raises:
             FileNotFoundError: 画像ファイルが存在しない
-            ValueError: 非対応形式、またはファイルサイズ10MB超過
+            ValueError: 非対応形式、またはファイルサイズ50MB超過
             ImageLoadError: 画像読み込み失敗
         """
         self.logger.info("Loading image", image_path=str(image_path))
