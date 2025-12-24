@@ -202,6 +202,16 @@ class ImageAnalyzer:
         Raises:
             ValidationError: レスポンス構造が不正
         """
+        # レスポンスが辞書でない場合のエラーハンドリング
+        if not isinstance(response, dict):
+            self.logger.error(
+                "Invalid response type (expected dict)",
+                response_type=type(response).__name__,
+            )
+            raise ValidationError(
+                f"LLM response must be a dictionary, got {type(response).__name__}"
+            )
+
         elements_data = response.get("elements", [])
         background_data = response.get("background", {})
 
@@ -352,35 +362,22 @@ class ImageAnalyzer:
     ) -> Position:
         """座標の正規化
 
-        元画像の座標をスライドサイズに正規化します。
-        アスペクト比を考慮した座標変換を行います。
+        LLMが返す座標（パーセンテージ、0-100）をスライドサイズのピクセル座標に変換します。
 
         Args:
-            position_data: 座標データ（x, y）
-            original_image_size: 元画像のサイズ
-            slide_dimensions: スライドサイズ
+            position_data: 座標データ（x, y as percentages 0-100）
+            original_image_size: 元画像のサイズ（未使用、互換性のため維持）
+            slide_dimensions: スライドサイズ（幅、高さ）
 
         Returns:
-            Position: 正規化された座標
+            Position: 正規化された座標（スライドサイズのピクセル単位）
         """
         x = position_data.get("x", 0)
         y = position_data.get("y", 0)
 
-        # ゼロ除算チェック
-        if original_image_size[0] == 0 or original_image_size[1] == 0:
-            self.logger.warning(
-                "Invalid original image size (zero dimension), returning default position (0, 0)",
-                original_size=original_image_size,
-            )
-            return Position(x=0, y=0)
-
-        # 元画像とスライドのスケール比を計算
-        scale_x = slide_dimensions[0] / original_image_size[0]
-        scale_y = slide_dimensions[1] / original_image_size[1]
-
-        # 座標を変換
-        normalized_x = int(x * scale_x)
-        normalized_y = int(y * scale_y)
+        # パーセンテージ（0-100）をスライドサイズのピクセル座標に変換
+        normalized_x = int(float(x) * slide_dimensions[0] / 100)
+        normalized_y = int(float(y) * slide_dimensions[1] / 100)
 
         # 座標のサニタイズ（0以上、スライドサイズ以下）
         normalized_x = max(0, min(normalized_x, slide_dimensions[0]))
@@ -396,35 +393,22 @@ class ImageAnalyzer:
     ) -> Size:
         """サイズの正規化
 
-        元画像のサイズをスライドサイズに正規化します。
-        アスペクト比を考慮したサイズ変換を行います。
+        LLMが返すサイズ（パーセンテージ、0-100）をスライドサイズのピクセル寸法に変換します。
 
         Args:
-            size_data: サイズデータ（width, height）
-            original_image_size: 元画像のサイズ
-            slide_dimensions: スライドサイズ
+            size_data: サイズデータ（width, height as percentages 0-100）
+            original_image_size: 元画像のサイズ（未使用、互換性のため維持）
+            slide_dimensions: スライドサイズ（幅、高さ）
 
         Returns:
-            Size: 正規化されたサイズ
+            Size: 正規化されたサイズ（スライドサイズのピクセル単位）
         """
-        width = size_data.get("width", 100)
-        height = size_data.get("height", 50)
+        width = size_data.get("width", 10)
+        height = size_data.get("height", 10)
 
-        # ゼロ除算チェック
-        if original_image_size[0] == 0 or original_image_size[1] == 0:
-            self.logger.warning(
-                "Invalid original image size (zero dimension), returning default size (100, 50)",
-                original_size=original_image_size,
-            )
-            return Size(width=100, height=50)
-
-        # 元画像とスライドのスケール比を計算
-        scale_x = slide_dimensions[0] / original_image_size[0]
-        scale_y = slide_dimensions[1] / original_image_size[1]
-
-        # サイズを変換
-        normalized_width = int(width * scale_x)
-        normalized_height = int(height * scale_y)
+        # パーセンテージ（0-100）をスライドサイズのピクセル寸法に変換
+        normalized_width = int(float(width) * slide_dimensions[0] / 100)
+        normalized_height = int(float(height) * slide_dimensions[1] / 100)
 
         # サイズのサニタイズ（最小1、最大スライドサイズ）
         normalized_width = max(1, min(normalized_width, slide_dimensions[0]))
@@ -445,7 +429,23 @@ class ImageAnalyzer:
             FontConfig: パースされたフォント設定
         """
         font_family = style_data.get("font_name", style_data.get("font_family", "Arial"))
-        font_size = style_data.get("font_size", 18)
+        font_size_raw = style_data.get("font_size", 18)
+
+        # フォントサイズの正規化（文字列から整数への変換）
+        if isinstance(font_size_raw, str):
+            # 文字列サイズを整数に変換
+            size_mapping = {
+                "small": 12,
+                "medium": 18,
+                "normal": 18,
+                "large": 24,
+                "extra-large": 32,
+                "xlarge": 32,
+            }
+            font_size = size_mapping.get(font_size_raw.lower(), 18)
+        else:
+            font_size = int(font_size_raw) if font_size_raw else 18
+
         color = self._parse_color(style_data.get("color", {}))
         bold = style_data.get("bold", False)
         italic = style_data.get("italic", False)

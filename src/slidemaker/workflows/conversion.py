@@ -413,9 +413,10 @@ class ConversionWorkflow(WorkflowOrchestrator):
                         continue
 
                     # 画像要素の切り出し
-                    # PageDefinitionのpositionとsizeは相対座標（%）なので、
-                    # 実際のピクセル座標に変換
+                    # PageDefinitionのpositionとsizeはスライドピクセル座標なので、
+                    # 画像ピクセル座標に変換
                     img_width, img_height = image.size
+                    slide_width, slide_height = 1920, 1080  # デフォルトスライドサイズ
 
                     # ゼロ除算チェック
                     if img_width == 0 or img_height == 0:
@@ -427,10 +428,11 @@ class ConversionWorkflow(WorkflowOrchestrator):
                         )
                         continue
 
-                    x_px = int(element.position.x * img_width / 100)
-                    y_px = int(element.position.y * img_height / 100)
-                    width_px = int(element.size.width * img_width / 100)
-                    height_px = int(element.size.height * img_height / 100)
+                    # スライドピクセル座標を画像ピクセル座標に変換
+                    x_px = int(element.position.x * img_width / slide_width)
+                    y_px = int(element.position.y * img_height / slide_height)
+                    width_px = int(element.size.width * img_width / slide_width)
+                    height_px = int(element.size.height * img_height / slide_height)
 
                     # bboxの作成（x, y, width, height）
                     bbox = (x_px, y_px, width_px, height_px)
