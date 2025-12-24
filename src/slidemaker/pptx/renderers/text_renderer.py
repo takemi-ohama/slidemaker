@@ -39,14 +39,14 @@ class TextRenderer:
             content_length=len(text_element.content),
         )
 
-        # Convert Position and Size (EMU) to python-pptx values
-        # Position and Size models store EMU values directly as integers
-        # python-pptx accepts int values as EMU, but type hints expect Length
-        # We cast to int to satisfy both runtime and type checking
-        left = int(text_element.position.x)
-        top = int(text_element.position.y)
-        width = int(text_element.size.width)
-        height = int(text_element.size.height)
+        # Convert Position and Size (pixels) to EMU for python-pptx
+        # Position and Size models store pixel values
+        # python-pptx requires EMU units (1 pixel = 9525 EMU)
+        EMU_PER_PIXEL = 9525
+        left = int(text_element.position.x * EMU_PER_PIXEL)
+        top = int(text_element.position.y * EMU_PER_PIXEL)
+        width = int(text_element.size.width * EMU_PER_PIXEL)
+        height = int(text_element.size.height * EMU_PER_PIXEL)
 
         # Validate values are positive
         if not all(val >= 0 for val in [left, top, width, height]):

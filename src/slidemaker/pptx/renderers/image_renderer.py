@@ -127,11 +127,12 @@ class ImageRenderer:
         else:
             raise ValueError(f"Unsupported fit mode: {image_element.fit_mode}")
 
-        # Convert to int (EMU values)
-        left = int(left)
-        top = int(top)
-        width = int(final_width)
-        height = int(final_height)
+        # Convert pixels to EMU (1 pixel = 9525 EMU)
+        EMU_PER_PIXEL = 9525
+        left = int(left * EMU_PER_PIXEL)
+        top = int(top * EMU_PER_PIXEL)
+        width = int(final_width * EMU_PER_PIXEL)
+        height = int(final_height * EMU_PER_PIXEL)
 
         # Validate values are non-negative and dimensions are positive
         if not all(val >= 0 for val in [left, top]):
