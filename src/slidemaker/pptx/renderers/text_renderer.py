@@ -2,10 +2,10 @@
 
 import structlog
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
 from pptx.slide import Slide
 from pptx.text.text import _Run
-from pptx.util import Pt
+from pptx.util import Inches, Pt
 
 from slidemaker.core.models.common import Alignment, Color
 from slidemaker.core.models.element import FontConfig, TextElement
@@ -58,6 +58,18 @@ class TextRenderer:
         # Add text box to slide (python-pptx accepts int as EMU despite type hints)
         textbox = slide.shapes.add_textbox(left, top, width, height)  # type: ignore[arg-type]
         text_frame = textbox.text_frame
+
+        # Set text wrapping
+        text_frame.word_wrap = True
+        
+        # Enable auto-fit to prevent overflow
+        text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+
+        # Set margins to 0 to maximize space
+        text_frame.margin_left = Inches(0)
+        text_frame.margin_right = Inches(0)
+        text_frame.margin_top = Inches(0)
+        text_frame.margin_bottom = Inches(0)
 
         # Set text content
         text_frame.text = text_element.content

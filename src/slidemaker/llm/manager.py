@@ -67,6 +67,7 @@ class LLMManager:
             ClaudeAdapter,
             GeminiAdapter,
             GPTAdapter,
+            VertexGeminiAdapter,
         )
 
         provider_map = {
@@ -77,6 +78,8 @@ class LLMManager:
             "openai": GPTAdapter,  # Alias
             "gemini": GeminiAdapter,
             "google": GeminiAdapter,  # Alias
+            "vertex-gemini": VertexGeminiAdapter,
+            "vertex": VertexGeminiAdapter,  # Alias
         }
 
         adapter_class = provider_map.get(config.provider.lower())
@@ -96,6 +99,29 @@ class LLMManager:
                 model=config.model,
                 region=region,
                 timeout=config.timeout,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+
+        # Vertex AI Gemini-specific initialization
+        if adapter_class == VertexGeminiAdapter:
+            project_id = config.extra_params.get("project_id")
+            if not project_id:
+                raise ValueError("project_id is required for Vertex AI Gemini")
+
+            location = config.extra_params.get("location", "us-central1")
+            api_version = config.extra_params.get("api_version", "v1")
+            use_global_endpoint = config.extra_params.get("use_global_endpoint", False)
+            max_tokens = config.extra_params.get("max_tokens", 8192)
+            temperature = config.extra_params.get("temperature", 0.7)
+
+            return VertexGeminiAdapter(
+                model=config.model,
+                timeout=config.timeout,
+                project_id=project_id,
+                location=location,
+                api_version=api_version,
+                use_global_endpoint=use_global_endpoint,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -182,12 +208,30 @@ class LLMManager:
         Args:
             prompt: User prompt
             system_prompt: Optional system prompt
-            **kwargs: Additional parameters (including image_data for Bedrock)
+            **kwargs: Additional parameters:
+                - image: PIL.Image object (will be converted to Base64)
+                - image_data: Base64-encoded image string (takes precedence over 'image')
 
         Returns:
             Structured analysis data
         """
         logger.info("Analyzing image", llm=self.image_llm.__class__.__name__)
+
+        # Convert PIL.Image to Base64 if provided
+        if "image" in kwargs and "image_data" not in kwargs:
+            from io import BytesIO
+            import base64
+            from PIL import Image
+            
+            image = kwargs.pop("image")  # Remove from kwargs
+            if isinstance(image, Image.Image):
+                buffer = BytesIO()
+                # Convert to RGB if needed
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
+                image.save(buffer, format="PNG")
+                image_bytes = buffer.getvalue()
+                kwargs["image_data"] = base64.b64encode(image_bytes).decode("utf-8")
 
         # Check if adapter has analyze_image method (e.g., BedrockClaudeAdapter)
         if hasattr(self.image_llm, "analyze_image") and callable(
@@ -198,7 +242,7 @@ class LLMManager:
             result = await analyze_method(prompt=prompt, system_prompt=system_prompt, **kwargs)
             return cast(dict[str, Any], result)
         else:
-            # Fallback to generate_structured for other adapters (e.g., ClaudeAdapter)
+            # Fallback to generate_structured for other adapters (e.g., ClaudeAdapter, VertexGeminiAdapter)
             return await self.image_llm.generate_structured(
                 prompt=prompt, system_prompt=system_prompt, **kwargs
             )

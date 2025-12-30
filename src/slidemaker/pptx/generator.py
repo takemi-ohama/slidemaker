@@ -139,13 +139,17 @@ class PowerPointGenerator:
 
         if size not in size_mapping:
             # カスタムサイズの場合はconfigのwidth/heightを使用
-            logger.warning(
-                "Custom or unsupported slide size, using config dimensions",
+            # PowerPoint 96 DPI基準: 1 px = 9,525 EMU
+            # 例: 1835 px × 1024 px → 19.11 in × 10.67 in → 17,478,375 EMU × 9,753,600 EMU
+            logger.info(
+                "Custom slide size, using config dimensions (96 DPI basis)",
                 size=size.value,
                 width=self.config.width,
                 height=self.config.height,
             )
-            # ピクセルからインチへの変換（96 DPI想定）
+            # ピクセルからインチへの変換（96 DPI基準）
+            # 1835 px / 96 = 19.11458... inches
+            # 1024 px / 96 = 10.66666... inches
             width_inches = self.config.width / 96.0
             height_inches = self.config.height / 96.0
             self.presentation.slide_width = Inches(width_inches)

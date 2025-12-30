@@ -3,9 +3,9 @@
 PDF/画像ファイルの読み込みと正規化機能を提供します。
 
 このモジュールは以下の機能を提供します:
-- PDFページをpdf2imageで画像リストに変換
+- PDFページをpdf2imageで画像リストに変換（PowerPoint 96 DPI基準: 1835×1024 px）
 - 各種画像形式の読み込み（PNG, JPEG, GIF, BMP）
-- 画像正規化（1920x1080、RGB変換）
+- 画像正規化（1835×1024、RGB変換）
 - セキュリティ対策（ファイルサイズ制限、ページ数制限）
 
 Classes:
@@ -31,9 +31,42 @@ SUPPORTED_IMAGE_FORMATS = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
 MAX_FILE_SIZE_MB = 50
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_PDF_PAGES = 50
-DEFAULT_DPI = 200
-TARGET_WIDTH = 1920
-TARGET_HEIGHT = 1080
+
+# PowerPoint Standard Size (16:9)
+# 10 inches x 5.625 inches
+# 960 px x 540 px (@ 96 DPI)
+# This ensures elements are sized correctly for standard PowerPoint templates
+DEFAULT_DPI = 150  # PDF→画像変換のDPI（品質維持）
+CUSTOM_WIDTH_PX = 960
+CUSTOM_HEIGHT_PX = 540
+TARGET_WIDTH = CUSTOM_WIDTH_PX
+TARGET_HEIGHT = CUSTOM_HEIGHT_PX
+
+# 元のPDF比率（PDF points基準）
+# 1376 / 768 = 1.791667
+ORIGINAL_PDF_ASPECT_RATIO = 1376 / 768
+
+# 実装サイズの比率検証（Standard 16:9）
+# 960 / 540 = 1.777...
+IMPLEMENTED_ASPECT_RATIO = CUSTOM_WIDTH_PX / CUSTOM_HEIGHT_PX
+
+# PowerPoint内部単位との関係（96 DPI基準）
+# 1 inch = 96 px @ 96 DPI
+# 1 inch = 914,400 EMU (PowerPoint内部単位)
+# 1 px = 914,400 / 96 = 9,525 EMU（python-pptxの実装）
+EMU_PER_PIXEL = 9525
+
+# サイズのEMU値（参考）
+# 960 px × 9525 = 9,144,000 EMU (Standard Width)
+# 540 px × 9525 = 5,143,500 EMU (Standard Height)
+SLIDE_WIDTH_EMU = CUSTOM_WIDTH_PX * EMU_PER_PIXEL
+SLIDE_HEIGHT_EMU = CUSTOM_HEIGHT_PX * EMU_PER_PIXEL
+
+# PDFサイズのインチ表記（参考）
+# 960 px / 96 = 10.0 inches
+# 540 px / 96 = 5.625 inches
+SLIDE_WIDTH_INCHES = CUSTOM_WIDTH_PX / 96.0
+SLIDE_HEIGHT_INCHES = CUSTOM_HEIGHT_PX / 96.0
 
 
 class ImageLoadError(ImageProcessingError):
@@ -100,7 +133,10 @@ class ImageLoader:
         self.logger.info("ImageLoader initialized")
 
     async def load_from_pdf(
-        self, pdf_path: Path | str, dpi: int = DEFAULT_DPI
+        self,
+        pdf_path: Path | str,
+        dpi: int = DEFAULT_DPI,
+        target_size: tuple[int, int] | None = None,
     ) -> list[Image.Image]:
         """PDFから画像リストを生成
 
@@ -110,6 +146,7 @@ class ImageLoader:
         Args:
             pdf_path: PDFファイルパス（PathまたはstrString）
             dpi: 解像度（デフォルト200、品質と速度のバランス）
+            target_size: 変換後の画像サイズ（幅, 高さ）。Noneの場合は(TARGET_WIDTH, TARGET_HEIGHT)を使用
 
         Returns:
             list[Image.Image]: ページごとの画像リスト（PIL.Image形式）
@@ -119,7 +156,13 @@ class ImageLoader:
             ValueError: PDFページ数が50を超える、ファイルサイズが50MBを超える、またはDPIが不正
             ImageLoadError: PDF変換失敗
         """
-        self.logger.info("Loading PDF", pdf_path=str(pdf_path), dpi=dpi)
+        # ターゲットサイズのデフォルト設定
+        if target_size is None:
+            target_size = (TARGET_WIDTH, TARGET_HEIGHT)
+
+        self.logger.info(
+            "Loading PDF", pdf_path=str(pdf_path), dpi=dpi, target_size=target_size
+        )
 
         # ファイルパスのバリデーション
         pdf_file = Path(pdf_path) if isinstance(pdf_path, str) else pdf_path
@@ -187,6 +230,9 @@ class ImageLoader:
             ) from e
 
         # PDFを画像に変換（非同期実行）
+        # CRITICAL FIX: PowerPoint 96 DPI基準のカスタムサイズに合わせて直接変換
+        # これによりスケールの一貫性が保たれ、LLMが正しいサイズで要素を配置できる
+        # デフォルト: 1835×1024 px（PDFの実サイズ1376×768 ptsを96 DPI基準で変換）
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -196,6 +242,7 @@ class ImageLoader:
                 pdf_file,
                 dpi=dpi,
                 fmt="PNG",
+                size=target_size,  # 96 DPI基準: 1835×1024 px（1376×768 pts）
                 thread_count=2,  # メモリ効率とパフォーマンスのバランス
             ),
         )
@@ -208,7 +255,11 @@ class ImageLoader:
         return images
 
     async def save_pdf_pages_as_png(
-        self, pdf_path: Path | str, output_dir: Path | str, dpi: int = DEFAULT_DPI
+        self,
+        pdf_path: Path | str,
+        output_dir: Path | str,
+        dpi: int = DEFAULT_DPI,
+        target_size: tuple[int, int] | None = None,
     ) -> list[Path]:
         """PDFページを個別のPNGファイルとして保存
 
@@ -219,6 +270,7 @@ class ImageLoader:
             pdf_path: PDFファイルパス（PathまたはstrString）
             output_dir: 出力先ディレクトリ（PathまたはstrString）
             dpi: 解像度（デフォルト200、品質と速度のバランス）
+            target_size: 変換後の画像サイズ（幅, 高さ）。Noneの場合は(TARGET_WIDTH, TARGET_HEIGHT)を使用
 
         Returns:
             list[Path]: 保存されたPNGファイルのパスリスト（ページ順）
@@ -233,16 +285,22 @@ class ImageLoader:
             >>> png_paths = await loader.save_pdf_pages_as_png(
             ...     "document.pdf",
             ...     "temp/pages",
-            ...     dpi=300
+            ...     dpi=300,
+            ...     target_size=(1920, 1080)
             ... )
             >>> print(png_paths)
             [Path('temp/pages/page_001.png'), Path('temp/pages/page_002.png'), ...]
         """
+        # ターゲットサイズのデフォルト設定
+        if target_size is None:
+            target_size = (TARGET_WIDTH, TARGET_HEIGHT)
+
         self.logger.info(
             "Saving PDF pages as PNG",
             pdf_path=str(pdf_path),
             output_dir=str(output_dir),
             dpi=dpi,
+            target_size=target_size,
         )
 
         # ファイルパスのバリデーション
@@ -315,6 +373,9 @@ class ImageLoader:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # PDFを画像に変換（非同期実行）
+        # CRITICAL FIX: PowerPoint 96 DPI基準のカスタムサイズに合わせて直接変換
+        # これによりスケールの一貫性が保たれ、LLMが正しいサイズで要素を配置できる
+        # デフォルト: 1835×1024 px（PDFの実サイズ1376×768 ptsを96 DPI基準で変換）
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -324,6 +385,7 @@ class ImageLoader:
                 pdf_file,
                 dpi=dpi,
                 fmt="PNG",
+                size=target_size,  # 96 DPI基準: 1835×1024 px（1376×768 pts）
                 thread_count=2,  # メモリ効率とパフォーマンスのバランス
             ),
         )
@@ -456,27 +518,38 @@ class ImageLoader:
                 details={"error": str(e)},
             ) from e
 
-    def normalize_image(self, image: Image.Image) -> Image.Image:
-        """画像を正規化（1920x1080にリサイズ、RGBモード変換）
+    def normalize_image(
+        self, image: Image.Image, target_size: tuple[int, int] | None = None
+    ) -> Image.Image:
+        """画像を正規化（指定サイズにリサイズ、RGBモード変換）
 
-        画像を指定されたサイズ（1920x1080）にリサイズし、RGBモードに変換します。
+        画像を指定されたサイズにリサイズし、RGBモードに変換します。
         アスペクト比を維持してリサイズし、余白は透明または白背景で埋められます。
 
         Args:
             image: 元画像（PIL.Image）
+            target_size: ターゲットサイズ（幅, 高さ）。Noneの場合は(TARGET_WIDTH, TARGET_HEIGHT)を使用
 
         Returns:
-            Image.Image: 正規化された画像（1920x1080、RGB）
+            Image.Image: 正規化された画像（指定サイズ、RGB）
 
         Notes:
+            - PDFから直接指定サイズで変換された場合はリサイズ不要
             - アスペクト比を維持してリサイズ
             - RGBAの場合はRGBに変換（白背景で合成）
             - EXIF回転情報を適用
         """
+        # ターゲットサイズのデフォルト設定
+        if target_size is None:
+            target_size = (TARGET_WIDTH, TARGET_HEIGHT)
+
+        target_width, target_height = target_size
+
         self.logger.info(
             "Normalizing image",
             original_size=image.size,
             original_mode=image.mode,
+            target_size=target_size,
         )
 
         try:
@@ -493,13 +566,21 @@ class ImageLoader:
             elif image.mode != "RGB":
                 image = image.convert("RGB")
 
+            # すでに正しいサイズの場合はリサイズをスキップ
+            if image.size == target_size:
+                self.logger.info(
+                    "Image already at target size, skipping resize",
+                    size=image.size,
+                )
+                return image
+
             # アスペクト比を維持してリサイズ
-            image.thumbnail((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
+            image.thumbnail(target_size, Image.Resampling.LANCZOS)
 
             # 中央配置で余白を白背景で埋める
-            normalized_image = Image.new("RGB", (TARGET_WIDTH, TARGET_HEIGHT), (255, 255, 255))
-            x_offset = (TARGET_WIDTH - image.width) // 2
-            y_offset = (TARGET_HEIGHT - image.height) // 2
+            normalized_image = Image.new("RGB", target_size, (255, 255, 255))
+            x_offset = (target_width - image.width) // 2
+            y_offset = (target_height - image.height) // 2
             normalized_image.paste(image, (x_offset, y_offset))
 
             self.logger.info(

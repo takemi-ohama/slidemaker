@@ -89,24 +89,19 @@ class SlideBuilder:
             self._set_background_color(slide, Color(hex_value=page_def.background_color))
             logger.debug("Background color set", color=page_def.background_color)
 
-        # Sort elements by z-index before placing them
+        # Sort elements by z-index (respecting individual overrides if any)
         page_def.sort_elements_by_z_index()
 
-        # Place elements using renderers
+        # Render Images first, then Text to ensure text is always on top by default
         for element in page_def.elements:
-            element_type = element.element_type
-            if element_type == "text":
-                # Type check: ensure element is TextElement before rendering
-                if isinstance(element, TextElement):
-                    self.text_renderer.render(slide, element)
-                    logger.debug("Text element rendered", element_type=element_type)
-            elif element_type == "image":
-                # Type check: ensure element is ImageElement before rendering
-                if isinstance(element, ImageElement):
-                    self.image_renderer.render(slide, element)
-                    logger.debug("Image element rendered", element_type=element_type)
-            else:
-                logger.warning("Unknown element type", element_type=element_type)
+            if isinstance(element, ImageElement):
+                self.image_renderer.render(slide, element)
+                logger.debug("Image element rendered", element_type="image")
+
+        for element in page_def.elements:
+            if isinstance(element, TextElement):
+                self.text_renderer.render(slide, element)
+                logger.debug("Text element rendered", element_type="text")
 
         logger.info("Slide built successfully", page_number=page_def.page_number)
         # Type assertion for mypy: slide is guaranteed to be Slide type from add_slide

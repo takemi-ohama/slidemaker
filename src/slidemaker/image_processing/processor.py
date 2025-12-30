@@ -9,7 +9,7 @@
 import re
 
 import structlog
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 from slidemaker.image_processing.exceptions import ImageCropError, ImageSaveError
 from slidemaker.utils.file_manager import FileManager
@@ -37,6 +37,80 @@ class ImageProcessor:
         """
         self.file_manager = file_manager
         logger.info("ImageProcessor initialized")
+
+    def mask_regions(
+        self,
+        image: Image.Image,
+        regions: list[tuple[int, int, int, int]],
+        fill_color: tuple[int, int, int] = (255, 255, 255),
+        auto_sample: bool = False,
+    ) -> Image.Image:
+        """指定された領域を塗りつぶす（テキスト除去用）
+
+        Args:
+            image: 元画像
+            regions: 塗りつぶす領域のリスト [(x, y, w, h), ...]
+            fill_color: 塗りつぶし色 (R, G, B) - auto_sample=Falseの場合に使用
+            auto_sample: Trueの場合、各領域の周辺から色をサンプリングする
+
+        Returns:
+            Image.Image: 塗りつぶし済みの画像コピー
+        """
+        if not regions:
+            return image
+
+        # 元画像を変更しないようにコピー
+        masked_image = image.copy()
+        # RGBモードに変換しないとgetpixelでエラーになる可能性があるが、copy()はモード維持
+        draw = ImageDraw.Draw(masked_image)
+
+        for x, y, w, h in regions:
+            # 負の値やゼロサイズを除外
+            if w <= 0 or h <= 0:
+                continue
+            
+            # マスク領域を少し拡大して、文字の残存（ゴースト）を防ぐ
+            pad = -15
+            draw_x = x + pad
+            draw_y = y + pad
+            draw_w = w - 2 * pad
+            draw_h = h - 2 * pad
+
+            # 色の決定
+            color = fill_color
+            if auto_sample:
+                # 領域の左上外側(x-2, y-2)からサンプリング
+                sx = max(0, x - 2)
+                sy = max(0, y - 2)
+                # 画像範囲内に収める
+                sx = min(sx, image.width - 1)
+                sy = min(sy, image.height - 1)
+                
+                try:
+                    sampled = image.getpixel((sx, sy))
+                    # RGBAやGrayscaleへの対応
+                    if isinstance(sampled, int):
+                        color = (sampled, sampled, sampled)
+                    elif len(sampled) >= 3:
+                        color = sampled[:3] # RGBのみ使用
+                except Exception:
+                    # 失敗時はデフォルト色
+                    pass
+
+            # 矩形を描画
+            draw.rectangle(
+                (draw_x, draw_y, draw_x + draw_w, draw_y + draw_h),
+                fill=color,
+                outline=None
+            )
+
+        logger.info(
+            "Masked regions",
+            region_count=len(regions),
+            auto_sample=auto_sample,
+            default_color=fill_color,
+        )
+        return masked_image
 
     def crop_element(
         self, image: Image.Image, bbox: tuple[int, int, int, int]
