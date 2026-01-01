@@ -90,10 +90,10 @@ STYLE ESTIMATION GUIDELINES:
    - Keep it concise (1-2 sentences)
 
 FONT SIZE EXAMPLES (for {height}px = 1024px):
-- Title "MDX変革を駆動する3つの戦略的柱" (height ~4%) → 32pt
-- Header "1. 「AIといえばナイル」" (height ~3%) → 20pt
-- Description paragraph (height ~2%) → 16pt
-- Footer "NotebookLM" (height ~1%) → 12pt
+- Title "MDX変革を駆動する3つの戦略的柱" (height ~4%) → 24pt
+- Header "1. 「AIといえばナイル」" (height ~3%) → 16pt
+- Description paragraph (height ~2%) → 12pt
+- Footer "NotebookLM" (height ~1%) → 10pt
 
 CRITICAL REMINDER:
 Be conservative with font sizes. Overestimation causes text overflow. Start small and only increase if visually obviously larger.

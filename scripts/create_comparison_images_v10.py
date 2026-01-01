@@ -27,7 +27,31 @@ def convert_pptx_to_images(pptx_path, output_dir):
     ]
     
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # セキュリティ: タイムアウトとエラーハンドリングの追加
+        result = subprocess.run(
+            cmd,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60  # 60秒でタイムアウト
+        )
+
+        # プロセスの正常終了を確認
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, cmd, result.stdout, result.stderr
+            )
+
+    except subprocess.TimeoutExpired:
+        print(f"LibreOffice conversion timed out after 60 seconds")
+        raise
+    except subprocess.CalledProcessError as e:
+        print(f"Error running LibreOffice: {e}")
+        print(f"stdout: {e.stdout.decode() if e.stdout else 'None'}")
+        print(f"stderr: {e.stderr.decode() if e.stderr else 'None'}")
+        raise
+
+    try:
         
         # Rename the output if needed (LibreOffice keeps the filename but changes extension)
         base_name = Path(pptx_path).stem
