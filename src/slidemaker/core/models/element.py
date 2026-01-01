@@ -36,6 +36,7 @@ class TextElement(ElementDefinition):
     font: FontConfig = Field(default_factory=FontConfig)
     alignment: Alignment = Field(default=Alignment.LEFT, description="Text alignment")
     line_spacing: float = Field(default=1.0, gt=0, le=3.0, description="Line spacing multiplier")
+    word_wrap: bool = Field(default=True, description="Enable text wrapping within the box")
 
 
 class ImageElement(ElementDefinition):

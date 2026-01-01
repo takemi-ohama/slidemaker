@@ -1,26 +1,36 @@
-# slidemaker configuration - AWS Bedrock
+# slidemaker configuration - Vertex AI Gemini (Improved Prompts)
 
 llm:
-  # Configuration for slide composition generation (Bedrock)
+  # Configuration for slide composition generation
+  # Uses: Markdown → スライド構成生成 (テキスト処理のみ)
+  # Model: Gemini 3 Pro Image Preview - 最先端の推論能力
   composition:
     type: api
-    provider: bedrock-claude
-    model: claude-3-sonnet-20240229
+    provider: vertex-gemini
+    model: gemini-3-pro-image-preview
     extra_params:
-      region: us-east-1
-      max_tokens: 4096
+      project_id: "${GOOGLE_CLOUD_PROJECT}"  # GCP Project ID (環境変数から取得)
+      location: "global"  # グローバルロケーション
+      api_version: "v1beta1"  # v1beta1 を使用
+      use_global_endpoint: true  # グローバルエンドポイントを使用
+      max_tokens: 8192
       temperature: 0.7
     timeout: 300
 
-  # Configuration for image generation/analysis (Bedrock)
+  # Configuration for image analysis
+  # Uses: PDF/画像分析、テキスト・画像要素の検出・抽出 (Vision必要)
+  # Model: Gemini 3 Pro Image Preview - 高精度な画像理解
   image_generation:
     type: api
-    provider: bedrock-claude
-    model: claude-3-sonnet-20240229
+    provider: vertex-gemini
+    model: gemini-3-pro-image-preview
     extra_params:
-      region: us-east-1
+      project_id: "${GOOGLE_CLOUD_PROJECT}"  # GCP Project ID (環境変数から取得)
+      location: "global"  # グローバルロケーション
+      api_version: "v1beta1"  # v1beta1 を使用
+      use_global_endpoint: true  # グローバルエンドポイントを使用
       max_tokens: 8192
-      temperature: 0.5
+      temperature: 0.3  # 低temperature = 精度重視
     timeout: 300
 
 output:

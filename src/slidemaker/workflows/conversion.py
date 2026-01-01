@@ -9,7 +9,11 @@ from PIL import Image
 
 from slidemaker.core.models.page_definition import PageDefinition
 from slidemaker.image_processing.analyzer import ImageAnalyzer
-from slidemaker.image_processing.loader import ImageLoader
+from slidemaker.image_processing.loader import (
+    CUSTOM_HEIGHT_PX,
+    CUSTOM_WIDTH_PX,
+    ImageLoader,
+)
 from slidemaker.image_processing.processor import ImageProcessor
 from slidemaker.llm.manager import LLMManager
 from slidemaker.pptx.generator import PowerPointGenerator
@@ -284,11 +288,23 @@ class ConversionWorkflow(WorkflowOrchestrator):
             WorkflowError: 画像読み込みエラー
         """
         try:
+            # PowerPointサイズを取得（96 DPI基準のカスタムサイズ: 1835×1024 px）
+            # PDFの実サイズ（1376×768 pts）を96 DPI基準で変換
+            target_size = (
+                self.powerpoint_generator.config.width,
+                self.powerpoint_generator.config.height,
+            )
+
             suffix = input_path.suffix.lower()
 
             if suffix == ".pdf":
                 # PDFの場合：ページごとにPNGファイルとして保存してから読み込み
-                self.logger.info("loading_pdf", path=str(input_path), dpi=dpi)
+                self.logger.info(
+                    "loading_pdf",
+                    path=str(input_path),
+                    dpi=dpi,
+                    target_size=target_size,
+                )
 
                 # 一時ディレクトリの準備
                 if temp_dir is None:
@@ -296,9 +312,10 @@ class ConversionWorkflow(WorkflowOrchestrator):
                 pdf_pages_dir = temp_dir / "pdf_pages"
                 pdf_pages_dir.mkdir(parents=True, exist_ok=True)
 
-                # PDFページをPNGファイルとして保存
+                # PDFページをPNGファイルとして保存（PowerPoint 96 DPI基準サイズで直接変換）
+                # これにより、座標変換が最小限になり、LLMが正しいサイズで要素を配置できる
                 png_paths = await self.image_loader.save_pdf_pages_as_png(
-                    input_path, pdf_pages_dir, dpi=dpi
+                    input_path, pdf_pages_dir, dpi=dpi, target_size=target_size
                 )
                 self.logger.info(
                     "pdf_pages_saved_as_png",
@@ -311,8 +328,11 @@ class ConversionWorkflow(WorkflowOrchestrator):
                 for png_path in png_paths:
                     self.logger.debug("loading_png_page", path=str(png_path))
                     image = await self.image_loader.load_from_image(png_path)
-                    # 画像を正規化（1920x1080にリサイズ）してファイルサイズを削減
-                    normalized_image = self.image_loader.normalize_image(image)
+                    # 画像を正規化（PowerPoint 96 DPI基準サイズに合わせる）
+                    # PDFから既に1835×1024 pxで変換されているため、通常はスキップされる
+                    normalized_image = self.image_loader.normalize_image(
+                        image, target_size=target_size
+                    )
                     images.append(normalized_image)
 
                 self.logger.info("pdf_loaded", page_count=len(images))
@@ -320,8 +340,10 @@ class ConversionWorkflow(WorkflowOrchestrator):
                 # 画像ファイルの読み込み
                 self.logger.info("loading_image", path=str(input_path))
                 image = await self.image_loader.load_from_image(input_path)
-                # 画像を正規化
-                normalized_image = self.image_loader.normalize_image(image)
+                # 画像を正規化（PowerPoint 96 DPI基準サイズ: 1835×1024 pxに合わせる）
+                normalized_image = self.image_loader.normalize_image(
+                    image, target_size=target_size
+                )
                 images = [normalized_image]
                 self.logger.info("image_loaded")
 
@@ -389,6 +411,10 @@ class ConversionWorkflow(WorkflowOrchestrator):
         """画像要素の抽出と保存（Step 3）.
 
         PageDefinitionから画像要素を切り出して保存し、source pathを更新します。
+        
+        重複排除（Inpainting）:
+        画像要素内にテキスト要素が含まれている場合、二重表示を防ぐために
+        画像側のテキスト領域を背景色で塗りつぶしてから切り出します。
 
         Args:
             images: 元画像のリスト
@@ -403,19 +429,48 @@ class ConversionWorkflow(WorkflowOrchestrator):
         """
         try:
             self.logger.info("processing_images", temp_dir=str(temp_dir), page_count=len(pages))
+            
+            # Import TextElement/ImageElement locally to avoid circular imports if any
+            from slidemaker.core.models.element import ImageElement, TextElement
 
             for page_idx, (image, page) in enumerate(zip(images, pages, strict=True)):
-                for elem_idx, element in enumerate(page.elements):
-                    # ImageElement型チェック
-                    from slidemaker.core.models.element import ImageElement
+                # 1. Collect text regions for masking
+                text_regions = []
+                for element in page.elements:
+                    # Check element type string instead of isinstance to be safe
+                    if getattr(element, "element_type", "") == "text":
+                        # Use precise coordinates from element (already in pixels)
+                        x = int(element.position.x)
+                        y = int(element.position.y)
+                        w = int(element.size.width)
+                        h = int(element.size.height)
+                        text_regions.append((x, y, w, h))
+                
+                self.logger.info(
+                    "text_regions_collected",
+                    page_idx=page_idx,
+                    count=len(text_regions),
+                    regions=text_regions[:5] # Log first 5 regions
+                )
+                
+                # 2. Create masked image with auto-sampling
+                # auto_sample=True: Sample color from around the text box to avoid "white box" artifacts
+                masked_image = self.image_processor.mask_regions(
+                    image, 
+                    text_regions, 
+                    fill_color=(255, 255, 255), # Fallback
+                    auto_sample=True
+                )
 
+                for elem_idx, element in enumerate(page.elements):
                     if not isinstance(element, ImageElement):
                         continue
 
                     # 画像要素の切り出し
-                    # PageDefinitionのpositionとsizeは相対座標（%）なので、
-                    # 実際のピクセル座標に変換
-                    img_width, img_height = image.size
+                    # PageDefinitionのpositionとsizeはスライドピクセル座標
+                    # 画像もスライドサイズに正規化されている前提
+                    img_width, img_height = masked_image.size
+                    slide_width, slide_height = CUSTOM_WIDTH_PX, CUSTOM_HEIGHT_PX
 
                     # ゼロ除算チェック
                     if img_width == 0 or img_height == 0:
@@ -427,10 +482,41 @@ class ConversionWorkflow(WorkflowOrchestrator):
                         )
                         continue
 
-                    x_px = int(element.position.x * img_width / 100)
-                    y_px = int(element.position.y * img_height / 100)
-                    width_px = int(element.size.width * img_width / 100)
-                    height_px = int(element.size.height * img_height / 100)
+                    # スライドピクセル座標を画像ピクセル座標に変換 (1:1 mapping expected)
+                    x_px = int(element.position.x * img_width / slide_width)
+                    y_px = int(element.position.y * img_height / slide_height)
+                    width_px = int(element.size.width * img_width / slide_width)
+                    height_px = int(element.size.height * img_height / slide_height)
+
+                    # 画像要素に余白（padding）を追加して広めに切り出す
+                    # LLMが過小評価した座標を補正
+                    # 特に下部のラベルが見切れるのを防ぐため、下方向のパディングを大きく取る
+                    
+                    # Horizontal: 30% padding
+                    padding_ratio_x = 0.30
+                    padding_x = int(width_px * padding_ratio_x)
+                    
+                    # Vertical: Asymmetric padding (Top 20%, Bottom 50%)
+                    padding_top_ratio = 0.20
+                    padding_bottom_ratio = 0.50
+                    padding_top = int(height_px * padding_top_ratio)
+                    padding_bottom = int(height_px * padding_bottom_ratio)
+
+                    # 元の位置を保存（position調整用）
+                    original_x_px = x_px
+                    original_y_px = y_px
+
+                    # Apply padding (clamp to image boundaries)
+                    x_px = max(0, x_px - padding_x)
+                    y_px = max(0, y_px - padding_top)
+                    
+                    # Calculate new width/height ensuring we don't exceed image bounds
+                    width_px = min(img_width - x_px, width_px + 2 * padding_x)
+                    height_px = min(img_height - y_px, height_px + padding_top + padding_bottom)
+
+                    # paddingによる位置のずれを計算
+                    actual_padding_x = original_x_px - x_px
+                    actual_padding_y = original_y_px - y_px
 
                     # bboxの作成（x, y, width, height）
                     bbox = (x_px, y_px, width_px, height_px)
@@ -440,8 +526,8 @@ class ConversionWorkflow(WorkflowOrchestrator):
 
                     # 画像の切り出しと保存
                     try:
-                        # 画像の切り出し（synchronous）
-                        cropped_image = self.image_processor.crop_element(image, bbox)
+                        # 画像の切り出し（synchronous）using masked_image
+                        cropped_image = self.image_processor.crop_element(masked_image, bbox)
 
                         # ファイル名の生成
                         filename = f"{image_id}.png"
@@ -455,24 +541,33 @@ class ConversionWorkflow(WorkflowOrchestrator):
                         # ImageElement.sourceを更新
                         element.source = str(saved_path)
 
+                        # 切り出した画像の実サイズをスライドピクセル座標に逆変換してsizeを更新
+                        from slidemaker.core.models.common import Position, Size
+                        updated_width = int(width_px * slide_width / img_width)
+                        updated_height = int(height_px * slide_height / img_height)
+                        element.size = Size(width=updated_width, height=updated_height)
+
+                        # paddingによる位置のずれを補正してpositionを更新
+                        adjusted_x = element.position.x - int(actual_padding_x * slide_width / img_width)
+                        adjusted_y = element.position.y - int(actual_padding_y * slide_height / img_height)
+                        element.position = Position(x=adjusted_x, y=adjusted_y)
+
                         self.logger.debug(
                             "image_element_processed",
                             image_id=image_id,
                             path=str(saved_path),
                         )
                     except Exception as elem_error:
-                        # 個別の画像要素の処理失敗は警告のみ（続行）
                         self.logger.warning(
                             "image_element_processing_failed",
                             image_id=image_id,
                             error=str(elem_error),
                         )
-                        # sourceを空文字列に設定（後でフィルタリング）
                         element.source = ""
                         continue
 
-            # 不正なImageElementをフィルタリング
-            from slidemaker.core.models.element import ImageElement
+            # 不正なImageElementをフィルタリング (unchanged)
+            # ... (rest of the method)
 
             for page in pages:
                 valid_elements = []

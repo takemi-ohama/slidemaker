@@ -238,12 +238,17 @@ class ConfigManager:
             # Basic required fields (api_key is conditionally required)
             required_fields = ["type", "provider", "model"]
 
-            # Check if provider uses Bedrock (AWS authentication)
+            # Check if provider uses alternative authentication (not API key)
             provider = config.get("provider", "")
-            is_bedrock_provider = provider in ["bedrock-claude", "bedrock"]
+            uses_alternative_auth = provider in [
+                "bedrock-claude",
+                "bedrock",
+                "vertex-gemini",
+                "vertex",
+            ]
 
-            # For non-Bedrock providers, api_key is required
-            if not is_bedrock_provider:
+            # For providers using API key authentication, api_key is required
+            if not uses_alternative_auth:
                 required_fields.append("api_key")
 
             # Validate required fields
@@ -261,8 +266,8 @@ class ConfigManager:
                 )
 
             # Warn if API key is not set (but allow for testing)
-            # Skip warning for Bedrock providers
-            if not is_bedrock_provider:
+            # Skip warning for providers using alternative authentication
+            if not uses_alternative_auth:
                 api_key = config.get("api_key", "")
                 if not api_key or api_key.startswith("${"):
                     logger.warning(

@@ -28,8 +28,13 @@ class PageDefinition(BaseModel):
         self.elements.append(element)
 
     def sort_elements_by_z_index(self) -> None:
-        """Sort elements by z-index (bottom to top)."""
-        self.elements.sort(key=lambda e: e.z_index)
+        """Sort elements by z-index (bottom to top).
+        
+        If z-index is equal, sort by element_type to ensure images (background)
+        are drawn before text (foreground).
+        'image' < 'text', so images come first.
+        """
+        self.elements.sort(key=lambda e: (e.z_index, e.element_type))
 
     def get_text_elements(self) -> list[TextElement]:
         """Get all text elements."""

@@ -47,6 +47,9 @@ SlidemakerはAIを活用した次世代のPowerPoint生成ツールです。Mark
 - **画像処理**: Pillow, pdf2image
 - **CLI**: Typer + Rich
 - **API**: FastAPI
+- **MCP統合**:
+  - Office-PowerPoint-MCP-Server v2.0.6 (32ツール)
+  - Serena (https://github.com/oraios/serena)
 
 ### フロントエンド (Phase 6)
 - **フレームワーク**: React 18 + TypeScript
@@ -389,6 +392,40 @@ uv run mypy src/
 ```
 
 詳細: [docs/getting_started.md](docs/getting_started.md)
+
+## MCP統合
+
+### Office-PowerPoint-MCP-Server
+
+**Version 2.0.6** - PowerPoint操作のための包括的なMCPサーバー
+
+Claude Codeで[Office-PowerPoint-MCP-Server](https://github.com/GongRzhe/Office-PowerPoint-MCP-Server)が利用可能です。32個の専門ツールでPowerPointプレゼンテーションを操作できます。
+
+#### 設定
+
+**`.mcp.json`**（プロジェクトルート）に設定済みです。**Claude Codeを再起動**すると利用可能になります。
+
+```json
+{
+  "mcpServers": {
+    "powerpoint": {
+      "command": "uvx",
+      "args": ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"],
+      "env": {
+        "PPT_TEMPLATE_PATH": "./templates"
+      }
+    }
+  }
+}
+```
+
+#### 主要機能
+
+- **32の専門ツール** - プレゼンテーション管理、コンテンツ作成、テンプレート操作など
+- **25以上のプロフェッショナルテンプレート** - 動的テキストサイジング、グラデーション背景
+- **4つのカラースキーム** - Modern Blue、Corporate Gray、Elegant Green、Warm Red
+
+詳細: https://github.com/GongRzhe/Office-PowerPoint-MCP-Server
 
 ## テスト戦略
 

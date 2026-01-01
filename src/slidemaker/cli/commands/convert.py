@@ -11,9 +11,9 @@ import typer
 
 from slidemaker.cli.config import ConfigManager
 from slidemaker.cli.output import OutputFormatter
-from slidemaker.core.models.common import SlideSize
 from slidemaker.core.models.slide_config import SlideConfig
 from slidemaker.image_processing import ImageAnalyzer, ImageLoader, ImageProcessor
+from slidemaker.image_processing.loader import CUSTOM_HEIGHT_PX, CUSTOM_WIDTH_PX
 from slidemaker.llm.manager import LLMManager
 from slidemaker.pptx.generator import PowerPointGenerator
 from slidemaker.utils.file_manager import FileManager
@@ -42,12 +42,14 @@ def convert(
         None, "--config", "-c", help="Config file path"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    dpi: int = typer.Option(300, "--dpi", help="PDF resolution (DPI)", min=72, max=600),
+    dpi: int = typer.Option(
+        150, "--dpi", help="PDF resolution (DPI, lower=faster)", min=72, max=600
+    ),
     max_concurrent: int = typer.Option(
         3, "--max-concurrent", help="Maximum concurrent analysis", min=1, max=10
     ),
     slide_size: str = typer.Option(
-        "16:9", "--slide-size", help="Slide size (16:9 or 4:3)"
+        "custom", "--slide-size", help="Slide size (custom [default, 96 DPI basis], 16:9, or 4:3)"
     ),
     analyze_only: bool = typer.Option(
         False, "--analyze-only", help="Analyze without converting (output JSON only)"
@@ -161,16 +163,29 @@ async def _convert_async(
             image_generation_config=app_config.llm.get("image_generation"),
         )
 
+        # SlideConfigの作成（ImageAnalyzerに次元を渡すため先に作成）
+        # PowerPoint 96 DPI基準のカスタムサイズを使用
+        # PDFの実サイズ（1376×768 pts）を96 DPI基準で変換: 1835×1024 px
+        if slide_size == "custom":
+            # カスタムサイズ（96 DPI基準）
+            slide_config = SlideConfig.create_custom(CUSTOM_WIDTH_PX, CUSTOM_HEIGHT_PX)
+        elif slide_size == "16:9":
+            slide_config = SlideConfig.create_16_9()
+        else:  # "4:3"
+            slide_config = SlideConfig.create_4_3()
+
         # Image処理コンポーネントの初期化
+        # CRITICAL FIX: PowerPointの実際のサイズに合わせてPDFを変換
+        # これにより完全にスケールが一致し、フォントサイズと画像トリミングが正確になる
+        pptx_size = (slide_config.width, slide_config.height)  # 1920×1080 (16:9) or 1024×768 (4:3)
+
         image_loader = ImageLoader(file_manager=file_manager)
-        image_analyzer = ImageAnalyzer(llm_manager=llm_manager)
+        image_analyzer = ImageAnalyzer(
+            llm_manager=llm_manager,
+            slide_dimensions=pptx_size,  # PowerPointの実際のサイズを伝える
+        )
         image_processor = ImageProcessor(file_manager=file_manager)
 
-        # SlideConfigの作成
-        slide_size_enum = (
-            SlideSize.WIDESCREEN_16_9 if slide_size == "16:9" else SlideSize.STANDARD_4_3
-        )
-        slide_config = SlideConfig(size=slide_size_enum)
         powerpoint_generator = PowerPointGenerator(config=slide_config)
 
         # ConversionWorkflowの初期化

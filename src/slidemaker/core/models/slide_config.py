@@ -49,3 +49,21 @@ class SlideConfig(BaseModel):
     def create_4_3(cls, **kwargs: Any) -> "SlideConfig":
         """Create 4:3 standard configuration."""
         return cls(size=SlideSize.STANDARD_4_3, width=1024, height=768, **kwargs)
+
+    @classmethod
+    def create_custom(cls, width: int, height: int, **kwargs: Any) -> "SlideConfig":
+        """Create custom size configuration.
+
+        Args:
+            width: Slide width in pixels (96 DPI basis)
+            height: Slide height in pixels (96 DPI basis)
+            **kwargs: Additional configuration options
+
+        Returns:
+            SlideConfig: Custom size configuration
+
+        Example:
+            >>> # PowerPoint 96 DPI basis: 1835×1024 px (PDF 1376×768 pts)
+            >>> config = SlideConfig.create_custom(1835, 1024)
+        """
+        return cls(size=SlideSize.CUSTOM, width=width, height=height, **kwargs)

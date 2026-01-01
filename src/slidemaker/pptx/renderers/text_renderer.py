@@ -2,10 +2,10 @@
 
 import structlog
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_AUTO_SIZE, PP_ALIGN
 from pptx.slide import Slide
 from pptx.text.text import _Run
-from pptx.util import Pt
+from pptx.util import Inches, Pt
 
 from slidemaker.core.models.common import Alignment, Color
 from slidemaker.core.models.element import FontConfig, TextElement
@@ -39,14 +39,14 @@ class TextRenderer:
             content_length=len(text_element.content),
         )
 
-        # Convert Position and Size (EMU) to python-pptx values
-        # Position and Size models store EMU values directly as integers
-        # python-pptx accepts int values as EMU, but type hints expect Length
-        # We cast to int to satisfy both runtime and type checking
-        left = int(text_element.position.x)
-        top = int(text_element.position.y)
-        width = int(text_element.size.width)
-        height = int(text_element.size.height)
+        # Convert Position and Size (pixels) to EMU for python-pptx
+        # Position and Size models store pixel values
+        # python-pptx requires EMU units (1 pixel = 9525 EMU)
+        EMU_PER_PIXEL = 9525
+        left = int(text_element.position.x * EMU_PER_PIXEL)
+        top = int(text_element.position.y * EMU_PER_PIXEL)
+        width = int(text_element.size.width * EMU_PER_PIXEL)
+        height = int(text_element.size.height * EMU_PER_PIXEL)
 
         # Validate values are positive
         if not all(val >= 0 for val in [left, top, width, height]):
@@ -58,6 +58,18 @@ class TextRenderer:
         # Add text box to slide (python-pptx accepts int as EMU despite type hints)
         textbox = slide.shapes.add_textbox(left, top, width, height)  # type: ignore[arg-type]
         text_frame = textbox.text_frame
+
+        # Set text wrapping
+        text_frame.word_wrap = True
+        
+        # Enable auto-fit to prevent overflow
+        text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+
+        # Set margins to 0 to maximize space
+        text_frame.margin_left = Inches(0)
+        text_frame.margin_right = Inches(0)
+        text_frame.margin_top = Inches(0)
+        text_frame.margin_bottom = Inches(0)
 
         # Set text content
         text_frame.text = text_element.content
